@@ -1,0 +1,11 @@
+[package]
+name = "skillslib-devserver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "브라우저 미리보기 서버 (가짜 데이터 + 자동 새로고침)"
+publish = false
+
+[dependencies]
+tiny_http = "0.12"
+skillslib-core = { path = "../core" }
