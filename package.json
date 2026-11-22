@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Claude · Claude Code · Codex 스킬 관리 라이브러리",
   "scripts": {
+    "tauri": "tauri",
     "preview": "cargo run -p skillslib-devserver",
     "dev": "tauri dev",
     "test": "cargo test --workspace",
