@@ -6,16 +6,14 @@
 
 ## 처음 한 번만
 
-1. 서명 키를 만들어요. **이 앱 전용으로 새로 만들고, 다른 앱의 키를 재사용하지 마세요.**
+1. 서명 키는 이미 만들어 두었어요. 공개키는 `src-tauri/tauri.conf.json`의 `plugins.updater.pubkey`에 들어 있고,
+   개인키(`skills-library.key`)는 저장소 밖에서 따로 전달했어요.
+   키를 새로 만들어야 한다면 `npx tauri signer generate -w ./skills-library.key`로 만들고,
+   공개키를 `tauri.conf.json`에 바꿔 넣으세요 (그러면 기존 설치본은 새 키로 서명된 업데이트를 받지 못해요).
 
-   ```bash
-   npx tauri signer generate -w ./skills-library.key
-   ```
-
-2. GitHub 저장소 → Settings → Secrets and variables → Actions
-   - **Secrets** `TAURI_SIGNING_PRIVATE_KEY`: `skills-library.key` 파일 내용
-   - **Secrets** `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: 키에 암호를 걸었다면 그 암호
-   - **Variables** `TAURI_UPDATER_PUBKEY`: `skills-library.key.pub` 파일 내용 (공개키라 비밀이 아니에요)
+2. GitHub 저장소 → Settings → Secrets and variables → Actions → **New repository secret**
+   - 이름 `TAURI_SIGNING_PRIVATE_KEY`, 값: `skills-library.key` 파일 내용 전체
+   - 키에 암호를 걸었다면 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`도 넣어요 (지금 키는 암호 없음)
 
 3. 개인키는 **저장소에 절대 커밋하지 마세요** (`.gitignore`에 `*.key`가 있어요).
    잃어버리면 이미 설치된 앱은 다시는 자동 업데이트를 받을 수 없어요. 안전한 곳에 백업해 두세요.
