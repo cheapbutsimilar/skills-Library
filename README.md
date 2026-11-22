@@ -80,6 +80,13 @@ npm run screenshots    # docs/screenshots/*.png
 npm run build          # 로컬 설치 파일
 ```
 
+```bash
+npm run build:win      # 리눅스에서 Windows 설치 파일 만들기 (mingw-w64, nsis 필요)
+```
+
+리눅스에서 Windows용으로 만들면 `x86_64-pc-windows-gnu` 타깃을 써서 `WebView2Loader.dll`이 실행 파일 옆에 함께 설치돼요.
+정식 릴리스는 Windows에서 빌드하는 릴리스 워크플로를 쓰세요.
+
 UI 작업은 Tauri 없이 브라우저 미리보기에서 해요. `scripts/mock-api.js`가 앱과 같은 모양의 가짜 브리지를 줘요.
 미리보기 주소 뒤에 `?mode=light`, `?preset=forest`, `?empty=1`, `?welcome=1`, `?update=1`을 붙여 여러 상태를 볼 수 있어요.
 

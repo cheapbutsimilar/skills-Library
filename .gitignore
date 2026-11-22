@@ -5,3 +5,4 @@ src-tauri/gen/
 *.key.pub
 .DS_Store
 docs/screenshots/_tmp*
+dist/

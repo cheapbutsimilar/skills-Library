@@ -10,7 +10,8 @@
     "lint": "cargo clippy --workspace --all-targets -- -D warnings && node scripts/check-ui.js",
     "screenshots": "node scripts/preview.js",
     "icons": "python3 scripts/make-icons.py && tauri icon scripts/icon-source.png -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios",
-    "build": "tauri build"
+    "build": "tauri build",
+    "build:win": "tauri build --target x86_64-pc-windows-gnu --bundles nsis"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
