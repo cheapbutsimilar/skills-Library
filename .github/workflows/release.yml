@@ -1,0 +1,78 @@
+name: Release
+
+# main에 푸시할 때마다 버전을 0.1.<실행번호>로 올려서 서명된 Windows 설치 파일과 latest.json을 릴리스에 올려요.
+# 필요한 것 (docs/RELEASE.md 참고):
+#   Secrets   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD(키에 암호를 걸었다면)
+#   Variables TAURI_UPDATER_PUBKEY (공개키 — 비밀이 아니에요)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 서명 키 확인
+        id: keys
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PUB: ${{ vars.TAURI_UPDATER_PUBKEY }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$PUB" ]; then
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY 또는 TAURI_UPDATER_PUBKEY가 없어서 릴리스를 건너뛰어요 (docs/RELEASE.md)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 버전·공개키 넣기
+        if: steps.keys.outputs.ok == 'true'
+        shell: bash
+        env:
+          PUB: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          VERSION: 0.1.${{ github.run_number }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "src-tauri/tauri.conf.json";
+            const c = JSON.parse(fs.readFileSync(p, "utf8"));
+            c.version = process.env.VERSION;
+            c.plugins.updater.pubkey = process.env.PUB;
+            fs.writeFileSync(p, JSON.stringify(c, null, 2));
+          '
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        if: steps.keys.outputs.ok == 'true'
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.keys.outputs.ok == 'true'
+      - uses: Swatinem/rust-cache@v2
+        if: steps.keys.outputs.ok == 'true'
+      - run: npm ci || npm install
+        if: steps.keys.outputs.ok == 'true'
+
+      - uses: tauri-apps/tauri-action@v0
+        if: steps.keys.outputs.ok == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SKILLSLIB_RELEASE: "1"
+        with:
+          projectPath: .
+          args: --config src-tauri/tauri.release.conf.json
+          tagName: v__VERSION__
+          releaseName: Skills Library v__VERSION__
+          releaseBody: 설치 파일(.exe)을 받아 실행하세요. 이미 설치했다면 앱이 알아서 업데이트해요.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true

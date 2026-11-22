@@ -1,0 +1,7 @@
+/target
+node_modules/
+src-tauri/gen/
+*.key
+*.key.pub
+.DS_Store
+docs/screenshots/_tmp*

@@ -1,0 +1,78 @@
+/* 디자인 토큰 — 기본 테마(다크, 아이리스) 기준.
+   실제 값은 theme.js가 배경·글자·강조색 세 가지에서 계산해 덮어써요. */
+:root {
+  --bg: #26262B;
+  --bg-rgb: 38, 38, 43;
+  --bg-sunken: #202024;
+  --bg-raised: #2E2E34;
+  --bg-hover: #35353C;
+  --bg-input: #1F1F23;
+  --line: rgba(243, 243, 245, 0.08);
+  --line-strong: rgba(243, 243, 245, 0.14);
+  --text: #F3F3F5;
+  --text-2: #B6B6BC;
+  --text-3: #83838A;
+  --accent: #8B7CF6;
+  --accent-hover: #9D90F8;
+  --accent-press: #7A6AE8;
+  --accent-soft: rgba(139, 124, 246, 0.14);
+  --accent-line: rgba(139, 124, 246, 0.45);
+  --on-accent: #141414;
+  --ok: #3DD68C;
+  --warn: #F5B83D;
+  --crit: #FF453A;
+  --warn-soft: rgba(245, 184, 61, 0.14);
+  --crit-soft: rgba(255, 69, 58, 0.14);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --tip-bg: #3A3A42;
+  --scroll: rgba(243, 243, 245, 0.16);
+
+  /* 항목 식별색 (배경 대비를 확인한 고정값) */
+  --agent-claude-code: #E0876A;
+  --agent-codex: #7FB7F5;
+  --agent-claude-app: #D9A35A;
+  --agent-other: #A0A0A8;
+
+  --font: "Pretendard Variable", Pretendard, "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  --r-sm: 6px;
+  --r: 10px;
+  --r-card: 14px;
+  --r-ctl: 8px;
+  --r-chip: 999px;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* 숫자는 항상 고정폭 숫자 */
+.num, .mono, td, .kpi .v, .tag, .count {
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+.mono { font-family: var(--mono); font-size: 12px; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+::selection { background: var(--accent-soft); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
