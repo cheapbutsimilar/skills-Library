@@ -406,15 +406,25 @@ fn folder_label(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.to_string_lossy().into())
 }
 
-/// 프로젝트 폴더를 골라 설치 위치로 추가해요. agent: claude-code | codex | both
+/// 프로젝트 폴더를 골라 설치 위치로 추가해요.
+/// agents: 쉼표로 나눈 claude-code, codex, gemini, grok (예전 값 "both"는 Claude Code + Codex)
 #[tauri::command]
 pub async fn target_add_project(app: AppHandle, st: State<'_, AppState>, agent: String) -> Res<Option<Settings>> {
+    let mut agents: Vec<Agent> = Vec::new();
+    for a in agent.split(',').map(str::trim) {
+        match a {
+            "claude-code" => agents.push(Agent::ClaudeCode),
+            "codex" => agents.push(Agent::Codex),
+            "gemini" => agents.push(Agent::Gemini),
+            "grok" => agents.push(Agent::Grok),
+            "both" => agents.extend([Agent::ClaudeCode, Agent::Codex]),
+            _ => {}
+        }
+    }
+    if agents.is_empty() {
+        return Err("에이전트를 하나 이상 골라 주세요".into());
+    }
     let Some(dir) = pick_folder(&app, "프로젝트 폴더 고르기") else { return Ok(None) };
-    let agents: Vec<Agent> = match agent.as_str() {
-        "claude-code" => vec![Agent::ClaudeCode],
-        "codex" => vec![Agent::Codex],
-        _ => vec![Agent::ClaudeCode, Agent::Codex],
-    };
     let label = folder_label(&dir);
     let (old, new, added) = {
         let mut g = st.lock();

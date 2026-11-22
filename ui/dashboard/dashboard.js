@@ -383,7 +383,7 @@
   // ───────────────────────── 설치 위치 ─────────────────────────
   function targetCard(t) {
     const def = !t.builtin ? '' : '';
-    const head = `<div class="t-head">${agentBadge(t.agent)}<div class="nmw"><div class="nm">${esc(t.name)}</div><div class="path" title="${esc(t.fullPath)}">${esc(t.path)}</div></div>
+    const head = `<div class="t-head">${agentBadge(t.agent, 'lg')}<div class="nmw"><div class="nm">${esc(t.name)}</div><div class="path" title="${esc(t.fullPath)}">${esc(t.path)}</div></div>
       ${btn('openPath', '', { cls: 'sm icon ghost', icon: 'folder', arg: t.fullPath, title: '폴더 열기' })}
       ${btn('targetPath', '경로 바꾸기', { cls: 'sm ghost', arg: t.id })}
       ${t.builtin ? btn('targetReset', '기본값', { cls: 'sm ghost', arg: t.id, title: '기본 경로로 되돌려요' }) : btn('targetRemove', '빼기', { cls: 'sm ghost danger', arg: t.id, title: '목록에서만 빼요. 폴더는 그대로예요' })}
@@ -413,12 +413,12 @@
       <div class="page-head"><div class="t"><h1>설치 위치</h1><p>에이전트가 스킬을 읽어 가는 폴더예요. 라이브러리의 스킬을 여기에 복사해서 설치해요.</p></div>
         <div class="actions">${ext ? btn('importAll', `밖에 있는 스킬 ${ext}개 가져오기`, { icon: 'download' }) : ''}${btn('addProject', '프로젝트 추가', { cls: 'primary', icon: 'plus' })}</div></div>
       ${S.snap.targets.map(targetCard).join('')}
-      <div class="card"><div class="t-head">${agentBadge('claude-app')}<div class="nmw"><div class="nm">Claude 앱</div><div class="path">claude.ai · Claude 데스크톱</div></div>
+      <div class="card"><div class="t-head">${agentBadge('claude-app', 'lg')}<div class="nmw"><div class="nm">Claude 앱</div><div class="path">claude.ai · Claude 데스크톱</div></div>
         ${btn('openClaudeApp', 'Claude 설정 열기', { cls: 'sm', icon: 'link' })}</div>
         <div class="spacer"></div>
         <div class="tip-line">${I.info}<span>Claude 앱은 스킬 폴더가 없어서 ZIP으로 올려요. 스킬 화면에서 <b>ZIP 내보내기</b> → Claude <b>설정 › 기능 › 스킬</b>에서 업로드하세요. 내보낸 뒤 라이브러리가 바뀌면 개요에 알려 드려요.</span></div></div>
       <div class="spacer"></div>
-      <div class="note">Claude Code는 <span class="mono">~/.claude/skills</span>와 프로젝트의 <span class="mono">.claude/skills</span>, Codex는 <span class="mono">~/.agents/skills</span>와 프로젝트의 <span class="mono">.agents/skills</span>를 읽어요. 예전 Codex는 <span class="mono">~/.codex/skills</span>를 썼어요. 경로가 다르면 ‘경로 바꾸기’로 맞춰 주세요.</div>
+      <div class="note">Claude Code는 <span class="mono">~/.claude/skills</span>, Codex는 <span class="mono">~/.agents/skills</span>(예전 <span class="mono">~/.codex/skills</span>), Gemini CLI는 <span class="mono">~/.gemini/skills</span>, Grok Build는 <span class="mono">~/.grok/skills</span>를 읽어요. 프로젝트는 각각 <span class="mono">.claude</span>·<span class="mono">.agents</span>·<span class="mono">.gemini</span>·<span class="mono">.grok</span> 아래 <span class="mono">skills</span> 폴더예요. 경로가 다르면 ‘경로 바꾸기’로 맞춰 주세요.</div>
     </div>`;
   }
 
@@ -529,6 +529,7 @@
       <h3>${esc(m.title)}</h3>${m.msg ? `<p>${m.msg}</p>` : ''}
       ${m.input ? `<input class="inp wide mono" id="modal-input" data-model="modal.input.value" value="${esc(m.input.value)}" placeholder="${esc(m.input.placeholder || '')}" autocomplete="off" spellcheck="false"/>` : ''}
       ${m.seg ? seg('modalSeg', m.seg.options, m.seg.value) : ''}
+      ${m.chips ? `<div class="chips">${m.chips.options.map(([v, l]) => `<button class="chip ${m.chips.value.includes(v) ? 'on' : ''}" data-act="modalChip" data-arg="${esc(v)}">${agentBadge(v)}${esc(l)}</button>`).join('')}</div>` : ''}
       ${m.check ? `<label class="chk"><input type="checkbox" id="modal-check" ${m.check.on ? 'checked' : ''}/> ${esc(m.check.label)}</label>` : ''}
       <div class="btns">${btn('modalCancel', m.cancel || '취소', { cls: 'ghost' })}${m.alt ? btn('modalAlt', m.alt, {}) : ''}${btn('modalOk', m.ok || '확인', { cls: m.danger ? 'danger solid' : 'primary', id: 'modal-ok' })}</div>
     </div></div>`;
@@ -539,6 +540,7 @@
       S.modal = Object.assign({}, opts, { resolve });
       S.lastInput = opts.input ? opts.input.value : '';
       S.lastSeg = opts.seg ? opts.seg.value : '';
+      S.lastChips = opts.chips ? opts.chips.value.slice() : [];
       renderModal();
       setTimeout(() => { const el = document.getElementById(opts.input ? 'modal-input' : 'modal-ok'); el && el.focus(); }, 0);
     });
@@ -825,10 +827,26 @@
     },
 
     addProject: async () => {
-      const r = await ask({ title: '프로젝트 추가', msg: '프로젝트 폴더를 고르면 그 안의 스킬 폴더를 설치 위치로 추가해요.<br/><span class="mono">.claude/skills</span> (Claude Code) · <span class="mono">.agents/skills</span> (Codex)', seg: { options: [['both', '둘 다'], ['claude-code', 'Claude Code'], ['codex', 'Codex']], value: 'both' }, ok: '폴더 고르기' });
-      if (r !== 'ok') return;
-      const s = await run(() => call('target_add_project', { agent: S.lastSeg || 'both' }));
+      // 기본 선택: 지금 켜 둔 에이전트들
+      const on = [...new Set(enabledTargets().map(t => t.agent).filter(a => a !== 'other'))];
+      const value = on.length ? on : ['claude-code', 'codex'];
+      const r = await ask({
+        title: '프로젝트 추가',
+        msg: '어떤 에이전트로 쓸지 고르고 프로젝트 폴더를 고르면, 그 안의 스킬 폴더를 설치 위치로 추가해요.',
+        chips: { options: [['claude-code', 'Claude Code'], ['codex', 'Codex'], ['gemini', 'Gemini CLI'], ['grok', 'Grok Build']], value },
+        ok: '폴더 고르기',
+      });
+      if (r !== 'ok' || !S.lastChips.length) return;
+      const s = await run(() => call('target_add_project', { agent: S.lastChips.join(',') }));
       if (s) { S.settings = s; toast('추가했어요'); const snap = await run(() => call('refresh')); if (snap) S.snap = snap; render(); }
+    },
+    modalChip: el => {
+      const v = el.dataset.arg;
+      const c = S.modal && S.modal.chips;
+      if (!c) return;
+      c.value = c.value.includes(v) ? c.value.filter(x => x !== v) : [...c.value, v];
+      S.lastChips = c.value;
+      renderModal();
     },
     targetPath: async el => {
       const s = await run(() => call('target_pick_path', { id: el.dataset.arg }));

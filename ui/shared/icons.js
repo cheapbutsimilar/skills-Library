@@ -35,17 +35,31 @@
     pull: svg('<path d="M8 13.5v-8M4.8 8.6 8 5.4l3.2 3.2"/><path d="M2.5 2.5h11"/>'),
   };
 
+  // 에이전트 → 공식 로고 (ui/shared/logos.js)
   const AGENTS = {
-    'claude-code': { label: 'Claude Code', short: 'CC', cls: 'claude-code' },
-    'codex': { label: 'Codex', short: 'CX', cls: 'codex' },
-    'claude-app': { label: 'Claude 앱', short: 'CA', cls: 'claude-app' },
-    'other': { label: '기타', short: '··', cls: 'other' },
+    'claude-code': { label: 'Claude Code', logo: 'claudecode-color' },
+    'codex': { label: 'Codex', logo: 'codex-color' },
+    'gemini': { label: 'Gemini CLI', logo: 'geminicli-color' },
+    'grok': { label: 'Grok Build', logo: 'grok' },
+    'claude-app': { label: 'Claude 앱', logo: 'claude-color' },
+    'other': { label: '기타', logo: null },
   };
 
-  function agentBadge(agent) {
-    const a = AGENTS[agent] || AGENTS.other;
-    return `<span class="agent ${a.cls}" title="${a.label}">${a.short}</span>`;
+  // 같은 로고를 여러 번 그려도 그라데이션 id가 겹치지 않게 매번 새 id를 붙여요.
+  let seq = 0;
+  function logo(name) {
+    const svg = (window.SL_LOGO_SVG || {})[name];
+    if (!svg) return I.folder;
+    const n = ++seq;
+    return svg.replace(/id="([^"]+)"/g, `id="$1-${n}"`).replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`)
+      .replace('<svg ', '<svg class="logo" aria-hidden="true" ');
   }
 
-  window.SL_ICONS = { I, AGENTS, agentBadge };
+  /** size: '' (18px) | 'lg' (타일 안 22px) */
+  function agentBadge(agent, size) {
+    const a = AGENTS[agent] || AGENTS.other;
+    return `<span class="agent ${size || ''}" title="${a.label}">${a.logo ? logo(a.logo) : I.folder}</span>`;
+  }
+
+  window.SL_ICONS = { I, AGENTS, agentBadge, logo };
 })();

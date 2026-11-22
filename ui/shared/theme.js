@@ -97,10 +97,6 @@
       '--shadow': dark ? '0 12px 32px rgba(0, 0, 0, 0.45)' : '0 12px 32px rgba(20, 20, 40, 0.12)',
       '--tip-bg': dark ? mix(bg, text, 0.14) : mix(text, bg, 0.08),
       '--scroll': rgba(text, dark ? 0.16 : 0.20),
-      '--agent-claude-code': dark ? '#E0876A' : '#B4502E',
-      '--agent-codex': dark ? '#7FB7F5' : '#2A6BB8',
-      '--agent-claude-app': dark ? '#D9A35A' : '#93621A',
-      '--agent-other': dark ? '#A0A0A8' : '#6A6A72',
     };
     return v;
   }

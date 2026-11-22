@@ -27,12 +27,6 @@
   --tip-bg: #3A3A42;
   --scroll: rgba(243, 243, 245, 0.16);
 
-  /* 항목 식별색 (배경 대비를 확인한 고정값) */
-  --agent-claude-code: #E0876A;
-  --agent-codex: #7FB7F5;
-  --agent-claude-app: #D9A35A;
-  --agent-other: #A0A0A8;
-
   --font: "Pretendard Variable", Pretendard, "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
   --mono: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
 

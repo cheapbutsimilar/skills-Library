@@ -8,7 +8,7 @@ use crate::targets::{builtin_targets, Agent, Target};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 pub const PRESETS: &[&str] = &["iris", "ember", "forest", "ocean", "ink", "sand"];
 pub const FONTS: &[&str] = &["pretendard", "segoe", "malgun", "noto", "system"];
 pub const ZOOMS: &[u32] = &[90, 100, 110, 125];
@@ -230,6 +230,8 @@ fn migrate(v: &mut Value) {
     if ver < 1 {
         // v0(버전 없음) → v1: 모양은 같아요.
     }
+    // v1 → v2: Gemini CLI·Grok Build 기본 대상이 생겼어요. sanitize가 빠진 기본 대상을 채우고,
+    // 켤지는 앱이 `targets::detect_enabled`로 정해요 (설정 파일에 없던 대상만).
     if let Some(o) = v.as_object_mut() {
         o.insert("v".into(), Value::from(VERSION));
     }
@@ -296,7 +298,7 @@ mod tests {
         s.sanitize();
         assert_eq!(s, before);
         assert!(s.auto_sync);
-        assert_eq!(s.targets.len(), 3);
+        assert_eq!(s.targets.len(), 5);
     }
 
     #[test]
@@ -323,7 +325,7 @@ mod tests {
         let s = from_value(json!({"autoSync": false, "targets": "garbage", "closeToTray": 5}));
         assert!(!s.auto_sync);
         assert!(s.close_to_tray);
-        assert_eq!(s.targets.len(), 3);
+        assert_eq!(s.targets.len(), 5);
     }
 
     #[test]
@@ -343,7 +345,7 @@ mod tests {
         dedup.sort();
         dedup.dedup();
         assert_eq!(ids.len(), dedup.len());
-        assert_eq!(s.targets.len(), 5);
+        assert_eq!(s.targets.len(), 7);
     }
 
     #[test]
@@ -352,6 +354,16 @@ mod tests {
         let s = apply_patch(&cur, &json!({"theme": {"mode": "dark"}}));
         assert_eq!(s.theme.mode, "dark");
         assert_eq!(s.theme.preset, "iris");
+    }
+
+    #[test]
+    fn v1_settings_gain_new_builtins() {
+        let s = from_value(json!({"v": 1, "targets": [
+            {"id": "claude-code", "name": "Claude Code", "agent": "claude-code", "path": "~/.claude/skills", "enabled": true}
+        ]}));
+        assert_eq!(s.v, 2);
+        assert!(s.target("gemini").is_some() && s.target("grok").is_some());
+        assert_eq!(s.target("grok").unwrap().agent, Agent::Grok);
     }
 
     #[test]

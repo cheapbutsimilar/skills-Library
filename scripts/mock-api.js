@@ -54,6 +54,8 @@
       { id: 'claude-code', name: 'Claude Code', agent: 'claude-code', path: '~/.claude/skills', enabled: true, builtin: true },
       { id: 'codex', name: 'Codex', agent: 'codex', path: '~/.agents/skills', enabled: true, builtin: true },
       { id: 'codex-legacy', name: 'Codex (예전 위치)', agent: 'codex', path: '$CODEX_HOME/skills', enabled: false, builtin: true },
+      { id: 'gemini', name: 'Gemini CLI', agent: 'gemini', path: '~/.gemini/skills', enabled: true, builtin: true },
+      { id: 'grok', name: 'Grok Build', agent: 'grok', path: '~/.grok/skills', enabled: true, builtin: true },
     ],
     autoSync: true, autostart: false, autoUpdate: true, closeToTray: true,
     hotkeyEnabled: true, hotkey: 'CommandOrControl+Alt+K', notifyExternal: true, sort: 'name', window: null,
@@ -73,8 +75,8 @@
     return (h >>> 0).toString(16);
   }
 
-  const copies = { 'claude-code': {}, 'codex': {}, 'codex-legacy': {} };
-  const man = { 'claude-code': {}, 'codex': {}, 'codex-legacy': {}, 'claude-app': {} };
+  const copies = { 'claude-code': {}, 'codex': {}, 'codex-legacy': {}, 'gemini': {}, 'grok': {} };
+  const man = { 'claude-code': {}, 'codex': {}, 'codex-legacy': {}, 'gemini': {}, 'grok': {}, 'claude-app': {} };
   function put(t, slug, files) { copies[t][slug] = { files: clone(files) }; man[t][slug] = hash(files); }
 
   put('claude-code', 'pdf-tools', lib['pdf-tools'].files);
@@ -87,6 +89,9 @@
   put('claude-code', 'code-review-ko', lib['code-review-ko'].files);
   copies['claude-code']['code-review-ko'].files['local-notes.md'] = '팀 규칙 추가';
   put('codex', 'brand-guidelines', lib['brand-guidelines'].files);
+  put('gemini', 'pdf-tools', lib['pdf-tools'].files);
+  put('gemini', 'code-review-ko', lib['code-review-ko'].files);
+  put('grok', 'commit-message', lib['commit-message'].files);
   man['claude-app']['brand-guidelines'] = 'old';
   // 라이브러리에 없는 외부 스킬
   copies['claude-code']['frontend-design'] = { files: { 'SKILL.md': md('frontend-design', '눈에 띄는 프런트엔드 화면을 만들어요.', '# 프런트엔드') } };
@@ -310,9 +315,14 @@
     import_paths: () => handlers.import_pick(),
     export_zip: ({ slug }) => { man['claude-app'][slug] = hash(need(slug).files); changed(); return `/home/me/Downloads/${slug}.zip`; },
     target_add_project: ({ agent }) => {
-      const add = (a, sub) => { const id = 't-' + (settings.targets.length + 1); settings.targets.push({ id, name: `my-app · ${a === 'codex' ? 'Codex' : 'Claude Code'}`, agent: a, path: `~/work/my-app/${sub}`, enabled: true, builtin: false }); copies[id] = {}; man[id] = {}; };
-      if (agent !== 'codex') add('claude-code', '.claude/skills');
-      if (agent !== 'claude-code') add('codex', '.agents/skills');
+      const sub = { 'claude-code': '.claude/skills', codex: '.agents/skills', gemini: '.gemini/skills', grok: '.grok/skills' };
+      const label = { 'claude-code': 'Claude Code', codex: 'Codex', gemini: 'Gemini', grok: 'Grok' };
+      for (const a of agent.split(',')) {
+        if (!sub[a]) continue;
+        const id = 't-' + (settings.targets.length + 1);
+        settings.targets.push({ id, name: `my-app · ${label[a]}`, agent: a, path: `~/work/my-app/${sub[a]}`, enabled: true, builtin: false });
+        copies[id] = {}; man[id] = {};
+      }
       emit('settings', clone(settings)); return clone(settings);
     },
     target_pick_path: () => clone(settings),

@@ -2,6 +2,8 @@
 //!
 //! - Claude Code: `~/.claude/skills`, 프로젝트는 `<프로젝트>/.claude/skills`
 //! - Codex: `~/.agents/skills`, 프로젝트는 `<프로젝트>/.agents/skills` (예전 위치 `$CODEX_HOME/skills`)
+//! - Gemini CLI: `~/.gemini/skills`, 프로젝트는 `<프로젝트>/.gemini/skills`
+//! - Grok Build: `~/.grok/skills`, 프로젝트는 `<프로젝트>/.grok/skills`
 //! - Claude 앱(claude.ai·데스크톱): 폴더가 없어요. ZIP으로 내보내서 설정 화면에 올려요.
 
 use crate::fsutil;
@@ -19,6 +21,8 @@ pub const CLAUDE_APP_URL: &str = "https://claude.ai/settings/capabilities";
 pub enum Agent {
     ClaudeCode,
     Codex,
+    Gemini,
+    Grok,
     #[serde(other)]
     Other,
 }
@@ -27,6 +31,8 @@ impl Agent {
     pub fn project_subdir(self) -> &'static str {
         match self {
             Agent::ClaudeCode => ".claude/skills",
+            Agent::Gemini => ".gemini/skills",
+            Agent::Grok => ".grok/skills",
             Agent::Codex | Agent::Other => ".agents/skills",
         }
     }
@@ -34,6 +40,8 @@ impl Agent {
         match self {
             Agent::ClaudeCode => "Claude Code",
             Agent::Codex => "Codex",
+            Agent::Gemini => "Gemini",
+            Agent::Grok => "Grok",
             Agent::Other => "기타",
         }
     }
@@ -82,7 +90,34 @@ pub fn builtin_targets() -> Vec<Target> {
             enabled: false,
             builtin: true,
         },
+        Target {
+            id: "gemini".into(),
+            name: "Gemini CLI".into(),
+            agent: Agent::Gemini,
+            path: "~/.gemini/skills".into(),
+            enabled: false,
+            builtin: true,
+        },
+        Target {
+            id: "grok".into(),
+            name: "Grok Build".into(),
+            agent: Agent::Grok,
+            path: "~/.grok/skills".into(),
+            enabled: false,
+            builtin: true,
+        },
     ]
+}
+
+/// 처음 보는 기본 대상(새로 설치했거나 새 버전에서 추가된 것)을 켤지 정해요.
+/// 그 에이전트를 쓰는 흔적(설정 폴더)이 있을 때만 켜요.
+pub fn detect_enabled(t: &Target, env: &Env) -> bool {
+    let dir = expand(&t.path, env);
+    match t.id.as_str() {
+        "codex-legacy" => dir.is_dir(),
+        "gemini" | "grok" => dir.is_dir() || dir.parent().is_some_and(|p| p.is_dir()),
+        _ => t.enabled,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -195,6 +230,19 @@ mod tests {
     }
 
     #[test]
+    fn detects_installed_agents() {
+        let t = TestDir::new("detect");
+        let env = Env { home: t.path().to_path_buf(), codex_home: None };
+        let b = builtin_targets();
+        let gemini = b.iter().find(|x| x.id == "gemini").unwrap();
+        assert!(!detect_enabled(gemini, &env));
+        std::fs::create_dir_all(t.path().join(".gemini")).unwrap();
+        assert!(detect_enabled(gemini, &env));
+        let legacy = b.iter().find(|x| x.id == "codex-legacy").unwrap();
+        assert!(!detect_enabled(legacy, &env));
+    }
+
+    #[test]
     fn scan_finds_skill_dirs_only() {
         let t = TestDir::new("scan");
         t.write("a/SKILL.md", "---\nname: a\ndescription: d\n---\n");
@@ -207,8 +255,10 @@ mod tests {
 
     #[test]
     fn unknown_agent_is_other() {
-        let t: Target = serde_json::from_str(r#"{"id":"x","name":"x","agent":"gemini","path":"/x"}"#).unwrap();
+        let t: Target = serde_json::from_str(r#"{"id":"x","name":"x","agent":"cursor","path":"/x"}"#).unwrap();
         assert_eq!(t.agent, Agent::Other);
+        let t: Target = serde_json::from_str(r#"{"id":"x","name":"x","agent":"gemini","path":"/x"}"#).unwrap();
+        assert_eq!(t.agent, Agent::Gemini);
         assert!(t.enabled);
     }
 }

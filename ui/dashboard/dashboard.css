@@ -186,13 +186,12 @@ textarea.code { font-family: var(--mono); font-size: 12.5px; tab-size: 2; white-
 .status.crit::before { background: var(--crit); }
 
 .agent {
-  display: inline-grid; place-items: center; width: 24px; height: 18px; border-radius: 5px; flex: none;
-  font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
-  color: var(--bg); background: var(--agent-other);
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; flex: none;
+  color: var(--text);
 }
-.agent.claude-code { background: var(--agent-claude-code); }
-.agent.codex { background: var(--agent-codex); }
-.agent.claude-app { background: var(--agent-claude-app); }
+.agent .logo, .agent .ic { width: 18px; height: 18px; display: block; }
+.agent.lg { width: 36px; height: 36px; border-radius: 10px; background: var(--bg-hover); }
+.agent.lg .logo, .agent.lg .ic { width: 22px; height: 22px; }
 
 /* 고정 열 표 (HANDOFF §3.6): 숫자 열은 고정, 이름 열이 양보 */
 table.tbl { width: 100%; min-width: 300px; table-layout: fixed; border-collapse: collapse; }
@@ -208,7 +207,7 @@ table.tbl { width: 100%; min-width: 300px; table-layout: fixed; border-collapse:
 .tbl td.nm small { display: block; color: var(--text-3); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
 .tbl td.r, .tbl th.r { text-align: right; }
 .tbl .acts { display: flex; gap: 6px; justify-content: flex-end; }
-.tbl col.c-agent { width: 44px; }
+.tbl col.c-agent { width: 46px; }
 .tbl col.c-num { width: 76px; }
 .tbl col.c-size { width: 90px; }
 .tbl col.c-status { width: 150px; }
@@ -236,8 +235,8 @@ table.tbl { width: 100%; min-width: 300px; table-layout: fixed; border-collapse:
 .skill .foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: auto; }
 .skill .foot .gap { flex: 1; }
 .pip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3); }
-.pip .agent { opacity: 0.35; }
-.pip.on .agent { opacity: 1; }
+.pip .agent { opacity: 0.3; filter: grayscale(1); }
+.pip.on .agent { opacity: 1; filter: none; }
 .pip.attn .agent { box-shadow: 0 0 0 2px var(--accent); }
 .pip.warn .agent { box-shadow: 0 0 0 2px var(--warn); }
 
@@ -347,3 +346,7 @@ div.warn .ic, div.err .ic { margin-top: 2px; }
 
 .tag-chips { margin-top: 8px; }
 #tag-input { margin-top: 8px; }
+
+.modal .chips { gap: 8px; }
+.chip .agent { width: 18px; height: 18px; }
+.chip .agent .logo, .chip .agent .ic { width: 15px; height: 15px; }

@@ -54,12 +54,19 @@ impl AppState {
         };
         let env = Env::from_os(home);
         let first_run = !paths.settings.exists() && !atomic::backup_path(&paths.settings).exists();
-        let mut s = atomic::read_json_value(&paths.settings).map(settings::from_value).unwrap_or_default();
-        if first_run {
-            // 예전 Codex 위치에 스킬 폴더가 있으면 그것도 켜요.
-            if let Some(t) = s.targets.iter_mut().find(|t| t.id == "codex-legacy") {
-                t.enabled = targets::expand(&t.path, &env).is_dir();
-            }
+        let stored = atomic::read_json_value(&paths.settings);
+        // 저장된 설정에 없던 기본 대상(첫 실행, 또는 새 버전에서 생긴 Gemini·Grok)은 그 에이전트를 쓰는지 보고 켜요.
+        let known: Vec<String> = stored
+            .as_ref()
+            .and_then(|v| v.get("targets"))
+            .and_then(|t| t.as_array())
+            .map(|a| a.iter().filter_map(|t| t.get("id").and_then(|i| i.as_str()).map(String::from)).collect())
+            .unwrap_or_default();
+        let mut s = stored.map(settings::from_value).unwrap_or_default();
+        let mut added = false;
+        for t in s.targets.iter_mut().filter(|t| t.builtin && !known.contains(&t.id)) {
+            t.enabled = targets::detect_enabled(t, &env);
+            added = true;
         }
         let manifest: Manifest = atomic::read_json(&paths.manifest).unwrap_or_default();
         let _ = std::fs::remove_dir_all(&paths.tmp);
@@ -73,7 +80,7 @@ impl AppState {
             first_run,
             first_imported: AtomicUsize::new(0),
         };
-        if first_run {
+        if first_run || added {
             let _ = st.save_settings();
         }
         st

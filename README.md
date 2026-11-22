@@ -1,6 +1,6 @@
 # Skills Library
 
-Claude · Claude Code · Codex **스킬을 한곳에서 관리하는 데스크톱 앱**이에요.
+Claude · Claude Code · Codex · Gemini CLI · Grok Build **스킬을 한곳에서 관리하는 데스크톱 앱**이에요.
 스킬 원본은 라이브러리에 두고, 필요한 곳에 설치하고, 고치면 설치된 곳에도 바로 반영해요.
 
 ![개요](docs/screenshots/overview.png)
@@ -8,7 +8,7 @@ Claude · Claude Code · Codex **스킬을 한곳에서 관리하는 데스크�
 ## 무엇을 하나요
 
 - **라이브러리** — 스킬(`SKILL.md`가 든 폴더)을 모아 두고 검색·태그·즐겨찾기로 정리해요.
-- **설치** — 라이브러리의 스킬을 Claude Code, Codex, 프로젝트 폴더에 한 번에 설치·업데이트·제거해요.
+- **설치** — 라이브러리의 스킬을 Claude Code, Codex, Gemini CLI, Grok Build, 프로젝트 폴더에 한 번에 설치·업데이트·제거해요.
 - **동기화** — 설치할 때 내용 해시를 기록해 두고, 라이브러리와 설치본 중 어느 쪽이 바뀌었는지 알려줘요.
   자동 동기화를 켜 두면(기본) 라이브러리에서 고친 내용이 설치된 곳에 바로 퍼져요. 설치 위치에서 따로 고친 건 건드리지 않아요.
 - **편집** — 양식(name·description·본문) 또는 SKILL.md 원본으로 고치고, 스크립트·참고 문서 같은 다른 파일도 편집해요.
@@ -33,6 +33,8 @@ Claude · Claude Code · Codex **스킬을 한곳에서 관리하는 데스크�
 | Claude Code | `~/.claude/skills` | `<프로젝트>/.claude/skills` |
 | Codex | `~/.agents/skills` | `<프로젝트>/.agents/skills` |
 | Codex (예전 위치) | `$CODEX_HOME/skills` (기본 `~/.codex/skills`) — 폴더가 있으면 처음 켤 때 자동으로 켜져요 | |
+| Gemini CLI | `~/.gemini/skills` — `~/.gemini`가 있으면 자동으로 켜져요 | `<프로젝트>/.gemini/skills` |
+| Grok Build | `~/.grok/skills` — `~/.grok`가 있으면 자동으로 켜져요 | `<프로젝트>/.grok/skills` |
 | Claude 앱 | ZIP 업로드 (설정 › 기능 › 스킬) | |
 
 경로가 다르면 **설치 위치 › 경로 바꾸기**로 맞추면 돼요. 프로젝트는 **프로젝트 추가**로 폴더를 고르면 위 경로가 자동으로 붙어요.
@@ -119,3 +121,6 @@ scripts/            mock-api.js, preview.js, check-ui.js, make-icons.py
 ## 라이선스
 
 MIT
+
+에이전트 로고는 [LobeHub Icons](https://github.com/lobehub/lobe-icons)(MIT)의 SVG를 `scripts/make-logos.js`로 가져왔어요.
+로고의 상표권은 Anthropic, OpenAI, Google, xAI에 있고, 어느 에이전트인지 표시하는 용도로만 써요.
