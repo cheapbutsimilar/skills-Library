@@ -6,11 +6,13 @@
 //! - [`targets`] — 설치 위치 (Claude Code, Codex, 프로젝트)
 //! - [`sync`] — 설치 기록과 동기화 상태
 //! - [`ops`] — 설치·업데이트·제거·가져오기
+//! - [`cleanup`] — 정리: 버전 통일, 예전 위치 옮기기
 //! - [`snapshot`] — 화면에 보낼 전체 상태
 //! - [`settings`] — 설정 스키마·검증·마이그레이션
 //! - [`zipio`] — Claude 앱용 ZIP 내보내기·가져오기
 
 pub mod atomic;
+pub mod cleanup;
 pub mod fsutil;
 pub mod library;
 pub mod ops;

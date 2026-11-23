@@ -80,6 +80,24 @@ pub fn import_from_target(ctx: &mut Ctx, dir_name: &str, r: &Resolved) -> Result
     Ok(slug)
 }
 
+/// 설치 위치에만 있는 스킬을 전부 라이브러리로 가져와요. (가져온 스킬, 실패 메시지)
+pub fn import_all_external(ctx: &mut Ctx, targets: &[Resolved]) -> (Vec<String>, Vec<String>) {
+    let mut slugs = Vec::new();
+    let mut errors = Vec::new();
+    for r in targets.iter().filter(|r| r.target.enabled) {
+        for f in scan(&r.dir) {
+            if ctx.lib.exists(&f.dir) {
+                continue;
+            }
+            match import_from_target(ctx, &f.dir, r) {
+                Ok(s) => slugs.push(s),
+                Err(e) => errors.push(format!("{}: {e}", f.dir)),
+            }
+        }
+    }
+    (slugs, errors)
+}
+
 /// 업데이트가 있는(설치 위치는 그대로인) 곳만 골라 업데이트해요. 따로 고친 설치본은 건드리지 않아요.
 /// 성공한 (스킬, 대상 이름) 목록과 실패 메시지를 돌려줘요.
 pub fn push_updates(ctx: &mut Ctx, slugs: &[String], targets: &[Resolved]) -> (Vec<(String, String)>, Vec<String>) {

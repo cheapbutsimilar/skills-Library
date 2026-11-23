@@ -170,7 +170,8 @@ fn remove_any(p: &Path) -> io::Result<()> {
     if meta.is_dir() {
         fs::remove_dir_all(p)
     } else {
-        fs::remove_file(p)
+        // Windows에서 폴더를 가리키는 링크는 remove_file로 안 지워져요.
+        fs::remove_file(p).or_else(|_| fs::remove_dir(p))
     }
 }
 
@@ -184,6 +185,12 @@ pub fn copy_tree(src: &Path, dst: &Path) -> io::Result<()> {
             fs::create_dir_all(p)?;
         }
         fs::copy(&from, &to)?;
+        // 수정 시각을 그대로 둬요. "어느 버전이 더 최근인지"를 복사본끼리 비교할 수 있어야 해요.
+        if let Ok(t) = fs::metadata(&from).and_then(|m| m.modified()) {
+            if let Ok(f) = fs::File::options().write(true).open(&to) {
+                let _ = f.set_modified(t);
+            }
+        }
     }
     Ok(())
 }
@@ -323,6 +330,18 @@ mod tests {
             .filter(|e| e.file_name().to_string_lossy().starts_with('.'))
             .collect();
         assert!(leftovers.is_empty());
+    }
+
+    #[test]
+    fn copy_keeps_modified_time() {
+        let t = TestDir::new("mtime");
+        let p = t.write("src/SKILL.md", "x");
+        let old = SystemTime::now() - std::time::Duration::from_secs(86_400 * 3);
+        fs::File::options().write(true).open(&p).unwrap().set_modified(old).unwrap();
+        copy_tree(&t.path().join("src"), &t.path().join("dst")).unwrap();
+        let a = dir_stats(&t.path().join("src")).updated;
+        let b = dir_stats(&t.path().join("dst")).updated;
+        assert_eq!(a, b);
     }
 
     #[test]

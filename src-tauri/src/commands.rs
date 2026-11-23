@@ -9,6 +9,7 @@ use crate::{apply, hotkeys, windows};
 use serde::Serialize;
 use serde_json::Value;
 use skillslib_core::library::SkillDetail;
+use skillslib_core::cleanup;
 use skillslib_core::ops;
 use skillslib_core::settings::{self, Settings};
 use skillslib_core::skill;
@@ -261,22 +262,7 @@ pub async fn import_all_external(app: AppHandle) -> Res<ImportResult> {
 
 pub fn import_all_external_inner(app: &AppHandle) -> ImportResult {
     let st = app.state::<AppState>();
-    let (slugs, errors) = st.with_ops(|ctx, targets, _| {
-        let mut slugs = Vec::new();
-        let mut errors = Vec::new();
-        for r in targets.iter().filter(|r| r.target.enabled) {
-            for f in skillslib_core::targets::scan(&r.dir) {
-                if ctx.lib.exists(&f.dir) {
-                    continue;
-                }
-                match ops::import_from_target(ctx, &f.dir, r) {
-                    Ok(s) => slugs.push(s),
-                    Err(e) => errors.push(format!("{}: {e}", f.dir)),
-                }
-            }
-        }
-        (slugs, errors)
-    });
+    let (slugs, errors) = st.with_ops(|ctx, targets, _| ops::import_all_external(ctx, targets));
     ImportResult { slugs, errors, snapshot: emit_snapshot(app) }
 }
 
@@ -404,6 +390,39 @@ fn pick_folder(app: &AppHandle, title: &str) -> Option<PathBuf> {
 
 fn folder_label(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.to_string_lossy().into())
+}
+
+/// 정리 미리보기: 무엇을 맞추고 옮길지 보여줘요. 아무것도 바꾸지 않아요.
+#[tauri::command]
+pub async fn cleanup_plan(st: State<'_, AppState>) -> Res<cleanup::Plan> {
+    Ok(st.with_ops(|ctx, targets, _| cleanup::plan(ctx.lib, targets, ctx.man, &st.env)))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupResult {
+    report: cleanup::Report,
+    settings: Settings,
+    snapshot: Snapshot,
+}
+
+/// 정리 실행. 예전 위치가 비면 그 설치 위치는 꺼요 (다시 켤 수 있어요).
+#[tauri::command]
+pub async fn cleanup_apply(app: AppHandle, st: State<'_, AppState>, choices: cleanup::Choices) -> Res<CleanupResult> {
+    let report = st.with_ops(|ctx, targets, _| cleanup::apply(ctx, targets, &choices));
+    if choices.legacy && report.legacy_emptied {
+        let (old, new) = {
+            let mut g = st.lock();
+            let old = g.settings.clone();
+            if let Some(t) = g.settings.targets.iter_mut().find(|t| t.id == cleanup::LEGACY_FROM) {
+                t.enabled = false;
+            }
+            (old, g.settings.clone())
+        };
+        st.save_settings()?;
+        apply::apply(&app, &old, &new);
+    }
+    Ok(CleanupResult { report, settings: st.settings(), snapshot: emit_snapshot(&app) })
 }
 
 /// 프로젝트 폴더를 골라 설치 위치로 추가해요.

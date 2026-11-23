@@ -107,6 +107,8 @@ pub fn run() {
             commands::import_target,
             commands::import_all_external,
             commands::sync_all,
+            commands::cleanup_plan,
+            commands::cleanup_apply,
             commands::import_pick,
             commands::import_paths,
             commands::export_zip,

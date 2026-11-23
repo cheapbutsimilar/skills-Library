@@ -45,6 +45,8 @@
     },
   };
 
+  const qs0 = new URLSearchParams(location.search);
+
   // ── 설정 ──
   let settings = {
     v: 1,
@@ -53,7 +55,7 @@
     targets: [
       { id: 'claude-code', name: 'Claude Code', agent: 'claude-code', path: '~/.claude/skills', enabled: true, builtin: true },
       { id: 'codex', name: 'Codex', agent: 'codex', path: '~/.agents/skills', enabled: true, builtin: true },
-      { id: 'codex-legacy', name: 'Codex (예전 위치)', agent: 'codex', path: '$CODEX_HOME/skills', enabled: false, builtin: true },
+      { id: 'codex-legacy', name: 'Codex (예전 위치)', agent: 'codex', path: '$CODEX_HOME/skills', enabled: !qs0.get('nolegacy'), builtin: true },
       { id: 'gemini', name: 'Gemini CLI', agent: 'gemini', path: '~/.gemini/skills', enabled: true, builtin: true },
       { id: 'grok', name: 'Grok Build', agent: 'grok', path: '~/.grok/skills', enabled: true, builtin: true },
     ],
@@ -77,7 +79,7 @@
 
   const copies = { 'claude-code': {}, 'codex': {}, 'codex-legacy': {}, 'gemini': {}, 'grok': {} };
   const man = { 'claude-code': {}, 'codex': {}, 'codex-legacy': {}, 'gemini': {}, 'grok': {}, 'claude-app': {} };
-  function put(t, slug, files) { copies[t][slug] = { files: clone(files) }; man[t][slug] = hash(files); }
+  function put(t, slug, files) { copies[t][slug] = { files: clone(files), updated: (lib[slug] || {}).updated || Date.now() }; man[t][slug] = hash(files); }
 
   put('claude-code', 'pdf-tools', lib['pdf-tools'].files);
   put('codex', 'pdf-tools', lib['pdf-tools'].files);
@@ -88,14 +90,19 @@
   // Claude Code에서 누가 고친 code-review-ko → 설치본이 바뀜
   put('claude-code', 'code-review-ko', lib['code-review-ko'].files);
   copies['claude-code']['code-review-ko'].files['local-notes.md'] = '팀 규칙 추가';
+  copies['claude-code']['code-review-ko'].updated = now - 1 * H;
+  // 예전 Codex 위치: 같은 것(pdf-tools), 이름만 같은 다른 것(brand-guidelines), 거기에만 있는 것(figma)
+  copies['codex-legacy']['pdf-tools'] = { files: clone(lib['pdf-tools'].files), updated: lib['pdf-tools'].updated };
+  copies['codex-legacy']['brand-guidelines'] = { files: { 'SKILL.md': md('brand-guidelines', '예전 브랜드 가이드예요. 색과 글꼴만 다뤄요.', '# 브랜드 (예전)\n') }, updated: now - 40 * 24 * H };
+  copies['codex-legacy']['figma'] = { files: { 'SKILL.md': md('figma', 'Figma 파일에서 디자인 정보를 읽어 코드로 옮겨요.', '# Figma\n') }, updated: now - 9 * 24 * H };
   put('codex', 'brand-guidelines', lib['brand-guidelines'].files);
   put('gemini', 'pdf-tools', lib['pdf-tools'].files);
   put('gemini', 'code-review-ko', lib['code-review-ko'].files);
   put('grok', 'commit-message', lib['commit-message'].files);
   man['claude-app']['brand-guidelines'] = 'old';
   // 라이브러리에 없는 외부 스킬
-  copies['claude-code']['frontend-design'] = { files: { 'SKILL.md': md('frontend-design', '눈에 띄는 프런트엔드 화면을 만들어요.', '# 프런트엔드') } };
-  copies['codex']['webapp-testing'] = { files: { 'SKILL.md': md('webapp-testing', 'Playwright로 웹앱을 확인해요.', '# 테스트') } };
+  copies['claude-code']['frontend-design'] = { updated: now - 2 * 24 * H, files: { 'SKILL.md': md('frontend-design', '눈에 띄는 프런트엔드 화면을 만들어요.', '# 프런트엔드') } };
+  copies['codex']['webapp-testing'] = { updated: now - 6 * 24 * H, files: { 'SKILL.md': md('webapp-testing', 'Playwright로 웹앱을 확인해요.', '# 테스트') } };
   if (qs.get('empty')) { for (const t in copies) copies[t] = {}; for (const t in man) man[t] = {}; }
 
   // ── 파싱·검사 (Rust core의 간단한 판) ──
@@ -139,9 +146,12 @@
   }
   const bytesOf = files => Object.values(files).reduce((a, s) => a + new Blob([s]).size, 0);
 
+  const ATTN = ['targetModified', 'conflict', 'foreign'];
+  const isOn = id => settings.targets.some(t => t.id === id && t.enabled);
+
   function snapshot() {
     const enabled = settings.targets.filter(t => t.enabled);
-    const counts = { skills: 0, withErrors: 0, installed: 0, updates: 0, attention: 0, external: 0, targets: enabled.length };
+    const counts = { skills: 0, withErrors: 0, installed: 0, updates: 0, attention: 0, external: 0, targets: enabled.length, divergent: 0, legacySkills: 0 };
     const skills = Object.keys(lib).sort().map(slug => {
       const s = lib[slug];
       const lh = hash(s.files);
@@ -158,6 +168,7 @@
         if (['targetModified', 'conflict', 'foreign'].includes(st)) counts.attention++;
         installs[t.id] = st;
       }
+      if (enabled.some(t => ATTN.includes(installs[t.id]))) counts.divergent++;
       const ar = man['claude-app'][slug];
       installs['claude-app'] = ar == null ? 'notInstalled' : ar === lh ? 'synced' : 'libraryNewer';
       return {
@@ -179,6 +190,7 @@
         enabled: t.enabled, builtin: t.builtin, exists: Object.keys(copies[t.id] || {}).length > 0 || t.id !== 'codex-legacy', skills: list,
       };
     });
+    if (isOn('codex-legacy') && isOn('codex')) counts.legacySkills = Object.keys(copies['codex-legacy']).length;
     return { libraryDir: settings.libraryDir || '/home/me/.local/share/com.cheapbutsimilar.skillslibrary/library', skills, targets, counts, claudeAppUrl: 'https://claude.ai/settings/capabilities', at: Date.now() };
   }
 
@@ -297,7 +309,7 @@
     },
     import_target: ({ target, dir }) => {
       const c = copies[target][dir];
-      lib[dir] = { tags: [], favorite: false, updated: Date.now(), files: clone(c.files) };
+      lib[dir] = { tags: [], favorite: false, updated: c.updated || Date.now(), files: clone(c.files) };
       man[target][dir] = hash(c.files);
       return { slug: dir, snapshot: changed() };
     },
@@ -305,6 +317,62 @@
       const slugs = [];
       for (const t of settings.targets.filter(t => t.enabled)) for (const dir in copies[t.id]) if (!lib[dir]) { handlers.import_target({ target: t.id, dir }); slugs.push(dir); }
       return { slugs, errors: [], snapshot: changed() };
+    },
+    cleanup_plan: () => {
+      const snap = snapshot();
+      const enabled = settings.targets.filter(t => t.enabled);
+      const divergent = [];
+      for (const sk of snap.skills) {
+        if (!enabled.some(t => ATTN.includes(sk.installs[t.id]))) continue;
+        const vs = [];
+        const add = (files, updated, place) => {
+          const h = hash(files);
+          let v = vs.find(x => x.hash === h);
+          if (!v) { v = { hash: h, files: Object.keys(files).length, bytes: bytesOf(files), updated, places: [], inLibrary: false }; vs.push(v); }
+          v.updated = Math.max(v.updated, updated); v.places.push(place); if (place.id === 'library') v.inLibrary = true;
+        };
+        add(lib[sk.slug].files, lib[sk.slug].updated, { id: 'library', name: '라이브러리', agent: null });
+        for (const t of enabled) { const c = (copies[t.id] || {})[sk.slug]; if (c) add(c.files, c.updated || 0, { id: t.id, name: t.name, agent: t.agent }); }
+        vs.sort((a, b) => b.updated - a.updated);
+        divergent.push({ slug: sk.slug, description: sk.description, versions: vs, suggested: vs[0].hash });
+      }
+      let legacy = null;
+      const from = copies['codex-legacy'], to = copies['codex'];
+      if (isOn('codex-legacy') && isOn('codex') && Object.keys(from).length) {
+        legacy = {
+          fromName: 'Codex (예전 위치)', fromPath: '~/.codex/skills', toName: 'Codex', toPath: '~/.agents/skills',
+          skills: Object.keys(from).sort().map(dir => ({ dir, state: !to[dir] ? 'move' : hash(to[dir].files) === hash(from[dir].files) ? 'duplicate' : 'differs' })),
+        };
+      }
+      return { divergent, legacy, external: snap.counts.external };
+    },
+    cleanup_apply: ({ choices }) => {
+      const rep = { imported: 0, unified: 0, moved: 0, duplicates: 0, skipped: [], errors: [], legacyEmptied: false };
+      const enabled = () => settings.targets.filter(t => t.enabled);
+      if (choices.external) rep.imported = handlers.import_all_external().slugs.length;
+      for (const [slug, want] of Object.entries(choices.picks || {})) {
+        if (!want || !lib[slug]) continue;
+        if (hash(lib[slug].files) !== want) {
+          const src = enabled().map(t => (copies[t.id] || {})[slug]).find(c => c && hash(c.files) === want);
+          if (!src) { rep.errors.push(`${slug}: 고른 버전을 찾지 못했어요 — 그 사이에 바뀌었어요. 다시 열어 주세요`); continue; }
+          lib[slug].files = clone(src.files); lib[slug].updated = src.updated || Date.now();
+        }
+        for (const t of enabled()) if ((copies[t.id] || {})[slug]) put(t.id, slug, lib[slug].files);
+        rep.unified++;
+      }
+      if (choices.legacy && isOn('codex-legacy') && isOn('codex')) {
+        const from = copies['codex-legacy'], to = copies['codex'];
+        for (const dir of Object.keys(from).sort()) {
+          if (!lib[dir]) { rep.skipped.push(`${dir}: 라이브러리에 없어서 그대로 뒀어요`); continue; }
+          const lh = hash(lib[dir].files);
+          if (hash(from[dir].files) !== lh || (to[dir] && hash(to[dir].files) !== lh)) { rep.skipped.push(`${dir}: 내용이 서로 달라서 그대로 뒀어요 — 버전을 먼저 골라 주세요`); continue; }
+          if (!to[dir]) { put('codex', dir, lib[dir].files); rep.moved++; } else rep.duplicates++;
+          delete from[dir]; delete man['codex-legacy'][dir];
+        }
+        rep.legacyEmptied = !Object.keys(from).length;
+        if (rep.legacyEmptied) { settings.targets.find(t => t.id === 'codex-legacy').enabled = false; emit('settings', clone(settings)); }
+      }
+      return { report: rep, settings: clone(settings), snapshot: changed() };
     },
     sync_all: () => { const done = pushUpdates(Object.keys(lib)); return { done: done.length, errors: [], snapshot: changed() }; },
     import_pick: () => {

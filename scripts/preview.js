@@ -36,6 +36,7 @@ async function waitUp(url, ms = 120000) {
       ['skill-install', 'dark', s => s.openSkill('commit-message')],
       ['skill-edit', 'dark', s => s.openSkill('api-docs', 'edit')],
       ['skill-files', 'dark', s => s.openSkill('pdf-tools', 'files')],
+      ['cleanup', 'dark', s => s.openCleanup()],
       ['targets', 'dark', s => s.goto('targets')],
       ['look', 'dark', s => s.goto('look')],
       ['alerts', 'dark', s => s.goto('alerts')],

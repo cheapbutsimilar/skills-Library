@@ -101,7 +101,7 @@
 
   function side() {
     const c = S.snap ? S.snap.counts : {};
-    const pg = S.page === 'skill' ? 'library' : S.page;
+    const pg = S.page === 'skill' ? 'library' : S.page === 'cleanup' ? 'overview' : S.page;
     const nav = (id, icon, label, count, hot) =>
       `<button class="nav ${pg === id ? 'active' : ''}" data-act="goto" data-arg="${id}">${I[icon]}<span class="label">${label}</span>${count ? `<span class="count ${hot ? 'hot' : ''}">${count}</span>` : ''}</button>`;
     const todo = (c.updates || 0) + (c.attention || 0);
@@ -175,7 +175,7 @@
     return `<div class="page">
       <div class="page-head"><div class="t"><h1>개요</h1><p>라이브러리와 설치 위치의 상태를 한눈에 봐요.</p></div>
         <div class="actions">${ext}${c.updates ? btn('syncAll', `업데이트 ${c.updates}개 모두 적용`, { cls: 'primary', icon: 'sync' }) : ''}</div></div>
-      ${welcome}
+      ${welcome}${cleanupBanner()}
       <div class="grid4">
         <div class="card kpi"><span class="k">스킬</span><span class="v">${c.skills}</span><span class="s">${c.withErrors ? `오류 있는 스킬 ${c.withErrors}개` : '모두 규칙에 맞아요'}</span></div>
         <div class="card kpi"><span class="k">설치</span><span class="v">${c.installed}</span><span class="s">설치 위치 ${c.targets}곳에</span></div>
@@ -521,6 +521,109 @@
     </div>`;
   }
 
+  // ───────────────────────── 정리 ─────────────────────────
+  // 꼬이지 않게: 먼저 버전을 하나로 맞추고, 그다음 예전 위치를 옮겨요. 밀려난 내용은 모두 휴지통에 백업해요.
+  function cleanupBanner() {
+    const c = S.snap.counts;
+    const parts = [];
+    if (c.divergent) parts.push(`이름이 같은데 내용이 다른 스킬 <b>${c.divergent}개</b>`);
+    if (c.legacySkills) parts.push(`예전 Codex 위치에 남은 스킬 <b>${c.legacySkills}개</b>`);
+    if (!parts.length) return '';
+    return `<div class="card banner"><div class="tip-line">${I.sync}<span>${parts.join(' · ')} — 한 번에 맞출 수 있어요.</span></div>${btn('cleanupOpen', '정리하기', { cls: 'primary' })}</div><div class="spacer"></div>`;
+  }
+
+  function pickFor(d, mode) {
+    if (mode === 'skip') return '';
+    if (mode === 'library') return (d.versions.find(v => v.inLibrary) || d.versions[0]).hash;
+    return d.suggested;
+  }
+
+  function versionRow(d, v) {
+    const on = S.cleanup.picks[d.slug] === v.hash;
+    const places = v.places.map(pl => pl.id === 'library'
+      ? '<span class="pl"><span class="tag">라이브러리</span></span>'
+      : `<span class="pl">${agentBadge(pl.agent)}${esc(pl.name)}</span>`).join('');
+    return `<button class="ver ${on ? 'on' : ''}" data-act="cuPick" data-arg="${esc(d.slug)}" data-arg2="${esc(v.hash)}">
+      <span class="radio"></span><span class="places">${places}</span>
+      ${v.hash === d.suggested ? '<span class="tag attn">가장 최근</span>' : ''}
+      <span class="vmeta num">${ago(v.updated)} · 파일 ${v.files}개 · ${bytes(v.bytes)}</span></button>`;
+  }
+
+  function divergentBlock(d) {
+    const skip = !S.cleanup.picks[d.slug];
+    return `<div class="cu-skill"><div class="cu-name"><span class="mono">${esc(d.slug)}</span><small>${esc(d.description || '')}</small></div>
+      <div class="vers">${d.versions.map(v => versionRow(d, v)).join('')}
+        <button class="ver ${skip ? 'on' : ''}" data-act="cuPick" data-arg="${esc(d.slug)}" data-arg2=""><span class="radio"></span><span class="places muted">그대로 두기</span></button></div></div>`;
+  }
+
+  function cleanupResult(r) {
+    const done = [];
+    if (r.imported) done.push(`${r.imported}개 가져옴`);
+    if (r.unified) done.push(`${r.unified}개 버전 맞춤`);
+    if (r.moved) done.push(`${r.moved}개 옮김`);
+    if (r.duplicates) done.push(`겹치는 ${r.duplicates}개 치움`);
+    const lines = [...r.errors.map(e => `<div class="err">${I.alert}<span>${esc(e)}</span></div>`), ...r.skipped.map(e => `<div class="warn">${I.info}<span>${esc(e)}</span></div>`)];
+    return `<div class="card"><div class="ok-line">${I.check}<span>${done.length ? done.join(' · ') + ' — 밀려난 내용은 휴지통에 있어요.' : '바뀐 게 없어요.'}</span>
+      <span class="gap"></span>${btn('openSpecial', '휴지통 열기', { cls: 'sm ghost', arg: 'trash' })}</div>
+      ${lines.length ? `<div class="spacer"></div><div class="issues">${lines.join('')}</div>` : ''}</div><div class="spacer"></div>`;
+  }
+
+  function pageCleanup() {
+    const cu = S.cleanup;
+    const head = (actions = '') => `<button class="back" data-act="goto" data-arg="overview">${I.back}개요</button>
+      <div class="page-head"><div class="t"><h1>정리</h1><p>흩어진 스킬을 한 번에 맞춰요. 밀려나는 내용은 모두 휴지통에 백업해서 되돌릴 수 있어요.</p></div><div class="actions">${actions}</div></div>`;
+    if (!cu || !cu.plan) return `<div class="page">${head()}<div class="card"><div class="empty">살펴보는 중…</div></div></div>`;
+    const p = cu.plan;
+    const nPick = p.divergent.filter(d => cu.picks[d.slug]).length;
+    const willDo = nPick > 0 || (p.legacy && cu.legacy) || (p.external > 0 && cu.external);
+    const result = cu.result ? cleanupResult(cu.result) : '';
+    if (!p.divergent.length && !p.legacy && !p.external) {
+      return `<div class="page">${head()}${result}<div class="card"><div class="empty"><b>정리할 게 없어요</b>라이브러리와 설치 위치가 깔끔해요.</div></div></div>`;
+    }
+    const lg = p.legacy;
+    const lgCount = s => lg.skills.filter(x => x.state === s).length;
+    const lgParts = lg ? [
+      lgCount('move') ? `옮길 것 ${lgCount('move')}개` : '',
+      lgCount('duplicate') ? `현 위치에 이미 같은 게 있어 치울 것 ${lgCount('duplicate')}개` : '',
+      lgCount('differs') ? `내용이 달라 위에서 버전을 골라야 하는 것 ${lgCount('differs')}개` : '',
+    ].filter(Boolean).join(' · ') : '';
+    return `<div class="page">
+      ${head(btn('cuApply', cu.busy ? '정리하는 중…' : '정리하기', { cls: 'primary', icon: 'sync', disabled: !willDo || cu.busy }))}
+      ${result}
+      ${p.external ? `<h2>1. 라이브러리에 없는 스킬</h2><div class="card"><div class="rows">
+        ${row(`설치 위치에만 있는 스킬 ${p.external}개 가져오기`, '원본은 그대로 두고 라이브러리로 복사해 와요. 여러 곳에 이름이 같고 내용이 다르면, 가져온 뒤 다시 정리를 열어 버전을 골라 주세요.', sw('data-cu="external"', cu.external))}
+      </div></div>` : ''}
+      ${p.divergent.length ? `<h2>${p.external ? '2' : '1'}. 이름이 같은데 내용이 다른 스킬 <span class="sub">${p.divergent.length}개 중 ${nPick}개 맞춤</span></h2>
+        <div class="toolbar"><span class="note">남길 버전을 하나 고르면 라이브러리와 설치된 곳 전부를 그 버전으로 맞춰요. 내용을 섞지는 않아요.</span><span class="gap"></span>
+          ${seg('cuBulk', [['newest', '모두 가장 최근 것'], ['library', '모두 라이브러리 것'], ['skip', '모두 그대로']], cu.bulk)}</div>
+        <div class="card flush">${p.divergent.map(divergentBlock).join('')}</div>` : ''}
+      ${lg ? `<h2>${1 + (p.external ? 1 : 0) + (p.divergent.length ? 1 : 0)}. 예전 Codex 위치</h2><div class="card"><div class="rows">
+        ${row(`예전 위치의 스킬 ${lg.skills.length}개를 현 위치로 옮기기`, `<span class="mono">${esc(lg.fromPath)}</span> → <span class="mono">${esc(lg.toPath)}</span><br/>${lgParts}`, sw('data-cu="legacy"', cu.legacy))}
+      </div><div class="spacer"></div>
+      <div class="tip-line">${I.info}<span>내용이 같은 것만 옮기고, 다 옮겨지면 예전 위치는 꺼요. 쓰는 Codex가 예전 위치만 읽는 버전이면 옮긴 뒤 스킬이 안 보일 수 있어요 — 그럴 땐 설치 위치에서 ‘Codex (예전 위치)’를 다시 켜고 설치하면 돼요.</span></div></div>` : ''}
+    </div>`;
+  }
+
+  async function loadPlan() {
+    const plan = await run(() => call('cleanup_plan'));
+    if (!plan || !S.cleanup) return;
+    const picks = {};
+    for (const d of plan.divergent) {
+      const prev = S.cleanup.picks[d.slug];
+      picks[d.slug] = prev !== undefined && (prev === '' || d.versions.some(v => v.hash === prev)) ? prev : pickFor(d, S.cleanup.bulk || 'newest');
+    }
+    Object.assign(S.cleanup, { plan, picks });
+    render();
+  }
+
+  async function openCleanup() {
+    if (!(await leaveOk())) return;
+    S.page = 'cleanup'; S.slug = null; S.detail = null;
+    S.cleanup = { plan: null, picks: {}, legacy: true, external: true, bulk: 'newest', result: null, busy: false };
+    render();
+    await loadPlan();
+  }
+
   // ───────────────────────── 대화상자 ─────────────────────────
   function modalHtml() {
     const m = S.modal;
@@ -563,6 +666,7 @@
       case 'look': return pageLook();
       case 'alerts': return pageAlerts();
       case 'general': return pageGeneral();
+      case 'cleanup': return pageCleanup();
       default: return pageOverview();
     }
   }
@@ -880,6 +984,24 @@
     },
     updateInstall: () => run(() => call('update_install')),
 
+    cleanupOpen: () => openCleanup(),
+    cuPick: el => {
+      S.cleanup.picks[el.dataset.arg] = el.dataset.arg2 || '';
+      S.cleanup.bulk = '';
+      render();
+    },
+    cuApply: async () => {
+      const cu = S.cleanup;
+      if (!cu || cu.busy) return;
+      cu.busy = true; render();
+      const picks = {};
+      for (const d of cu.plan.divergent) if (cu.picks[d.slug]) picks[d.slug] = cu.picks[d.slug];
+      const r = await run(() => call('cleanup_apply', { choices: { picks, legacy: !!(cu.plan.legacy && cu.legacy), external: !!(cu.plan.external && cu.external) } }));
+      cu.busy = false;
+      if (r) { S.snap = r.snapshot; S.settings = r.settings; cu.result = r.report; cu.picks = {}; cu.bulk = 'newest'; toast(r.report.errors.length ? '일부는 정리하지 못했어요' : '정리했어요', r.report.errors.length > 0); }
+      render();
+      await loadPlan();
+    },
     modalOk: () => { S.lastCheck = !!(document.getElementById('modal-check') || {}).checked; closeModal('ok'); },
     modalAlt: () => closeModal('alt'),
     modalCancel: () => closeModal('cancel'),
@@ -899,6 +1021,12 @@
   }
 
   const segH = {
+    cuBulk: v => {
+      const cu = S.cleanup;
+      cu.bulk = v;
+      for (const d of cu.plan.divergent) cu.picks[d.slug] = pickFor(d, v);
+      render();
+    },
     filter: v => { S.filter = v; render(); },
     sort: v => setSettings({ sort: v }),
     tab: v => A.tab({ dataset: { v } }),
@@ -986,7 +1114,8 @@
 
   document.addEventListener('change', e => {
     const el = e.target;
-    if (el.dataset.set) setSettings({ [el.dataset.set]: el.checked });
+    if (el.dataset.cu && S.cleanup) { S.cleanup[el.dataset.cu] = el.checked; render(); }
+    else if (el.dataset.set) setSettings({ [el.dataset.set]: el.checked });
     else if (el.dataset.targetOn) {
       const targets = S.settings.targets.map(t => t.id === el.dataset.targetOn ? Object.assign({}, t, { enabled: el.checked }) : t);
       setSettings({ targets });
@@ -1031,6 +1160,7 @@
       if (inField) { e.target.blur(); return; }
       if (S.creating) { S.creating = null; render(); return; }
       if (S.page === 'skill') goto('library');
+      else if (S.page === 'cleanup') goto('overview');
     }
   }, true);
 
@@ -1079,5 +1209,5 @@
   });
 
   // 미리보기·테스트용
-  window.__SL = { S, render, goto, openSkill };
+  window.__SL = { S, render, goto, openSkill, openCleanup };
 })();

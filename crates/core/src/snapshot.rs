@@ -1,5 +1,6 @@
 //! 화면에 보여줄 전체 상태(스냅샷)를 만들어요.
 
+use crate::cleanup::{LEGACY_FROM, LEGACY_TO};
 use crate::library::{LibSkill, Library};
 use crate::sync::{export_status, status, Manifest, Status};
 use crate::targets::{self, Agent, Env, Found, Target, CLAUDE_APP};
@@ -66,6 +67,10 @@ pub struct Counts {
     pub attention: usize,
     pub external: usize,
     pub targets: usize,
+    /// 이름이 같은데 내용이 다른 복사본이 있는 스킬 수 (정리 대상)
+    pub divergent: usize,
+    /// 예전 Codex 위치에 남아 있는 스킬 수 (현 위치도 켜져 있을 때만)
+    pub legacy_skills: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -96,6 +101,7 @@ pub fn build(lib: &Library, resolved: &[Resolved], man: &mut Manifest, env: &Env
             counts.with_errors += 1;
         }
         let mut installs = BTreeMap::new();
+        let mut any_attention = false;
         for r in resolved.iter().filter(|r| r.target.enabled) {
             let id = &r.target.id;
             let t_hash = found[id].iter().find(|f| f.dir == s.slug).map(|f| f.hash.as_str());
@@ -114,8 +120,12 @@ pub fn build(lib: &Library, resolved: &[Resolved], man: &mut Manifest, env: &Env
             }
             if st.needs_attention() {
                 counts.attention += 1;
+                any_attention = true;
             }
             installs.insert(id.clone(), st);
+        }
+        if any_attention {
+            counts.divergent += 1;
         }
         let rec = man.get(CLAUDE_APP, &s.slug).map(|r| r.hash.clone());
         installs.insert(CLAUDE_APP.into(), export_status(&s.hash, rec.as_deref()));
@@ -165,6 +175,11 @@ pub fn build(lib: &Library, resolved: &[Resolved], man: &mut Manifest, env: &Env
             exists: r.dir.is_dir(),
             skills,
         });
+    }
+
+    let on = |id: &str| resolved.iter().any(|r| r.target.id == id && r.target.enabled);
+    if on(LEGACY_FROM) && on(LEGACY_TO) {
+        counts.legacy_skills = found.get(LEGACY_FROM).map(|l| l.len()).unwrap_or(0);
     }
 
     let snap = Snapshot {
