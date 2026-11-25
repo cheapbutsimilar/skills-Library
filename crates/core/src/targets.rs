@@ -4,6 +4,9 @@
 //! - Codex: `~/.agents/skills`, 프로젝트는 `<프로젝트>/.agents/skills` (예전 위치 `$CODEX_HOME/skills`)
 //! - Gemini CLI: `~/.gemini/skills`, 프로젝트는 `<프로젝트>/.gemini/skills`
 //! - Grok Build: `~/.grok/skills`, 프로젝트는 `<프로젝트>/.grok/skills`
+//! - Antigravity: `~/.gemini/antigravity/skills`, 프로젝트는 `<프로젝트>/.agent/skills`
+//! - Cursor: `~/.cursor/skills`, 프로젝트는 `<프로젝트>/.cursor/skills`
+//! - Windsurf: `~/.codeium/windsurf/skills`, 프로젝트는 `<프로젝트>/.windsurf/skills`
 //! - Claude 앱(claude.ai·데스크톱): 폴더가 없어요. ZIP으로 내보내서 설정 화면에 올려요.
 
 use crate::fsutil;
@@ -23,6 +26,9 @@ pub enum Agent {
     Codex,
     Gemini,
     Grok,
+    Antigravity,
+    Cursor,
+    Windsurf,
     #[serde(other)]
     Other,
 }
@@ -33,17 +39,37 @@ impl Agent {
             Agent::ClaudeCode => ".claude/skills",
             Agent::Gemini => ".gemini/skills",
             Agent::Grok => ".grok/skills",
+            Agent::Antigravity => ".agent/skills",
+            Agent::Cursor => ".cursor/skills",
+            Agent::Windsurf => ".windsurf/skills",
             Agent::Codex | Agent::Other => ".agents/skills",
         }
     }
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Agent::ClaudeCode => "Claude Code",
-            Agent::Codex => "Codex",
-            Agent::Gemini => "Gemini",
-            Agent::Grok => "Grok",
-            Agent::Other => "기타",
+            Agent::ClaudeCode => "Claude Code".into(),
+            Agent::Codex => "Codex".into(),
+            Agent::Gemini => "Gemini".into(),
+            Agent::Grok => "Grok".into(),
+            Agent::Antigravity => "Antigravity".into(),
+            Agent::Cursor => "Cursor".into(),
+            Agent::Windsurf => "Windsurf".into(),
+            Agent::Other => tr!("기타", "Other"),
         }
+    }
+
+    /// 프로젝트 추가 대화상자에서 쓰는 id (`claude-code`, `codex` …)
+    pub fn from_id(id: &str) -> Option<Agent> {
+        Some(match id {
+            "claude-code" => Agent::ClaudeCode,
+            "codex" => Agent::Codex,
+            "gemini" => Agent::Gemini,
+            "grok" => Agent::Grok,
+            "antigravity" => Agent::Antigravity,
+            "cursor" => Agent::Cursor,
+            "windsurf" => Agent::Windsurf,
+            _ => return None,
+        })
     }
 }
 
@@ -84,7 +110,7 @@ pub fn builtin_targets() -> Vec<Target> {
         },
         Target {
             id: "codex-legacy".into(),
-            name: "Codex (예전 위치)".into(),
+            name: tr!("Codex (예전 위치)", "Codex (legacy location)"),
             agent: Agent::Codex,
             path: "$CODEX_HOME/skills".into(),
             enabled: false,
@@ -106,6 +132,30 @@ pub fn builtin_targets() -> Vec<Target> {
             enabled: false,
             builtin: true,
         },
+        Target {
+            id: "antigravity".into(),
+            name: "Antigravity".into(),
+            agent: Agent::Antigravity,
+            path: "~/.gemini/antigravity/skills".into(),
+            enabled: false,
+            builtin: true,
+        },
+        Target {
+            id: "cursor".into(),
+            name: "Cursor".into(),
+            agent: Agent::Cursor,
+            path: "~/.cursor/skills".into(),
+            enabled: false,
+            builtin: true,
+        },
+        Target {
+            id: "windsurf".into(),
+            name: "Windsurf".into(),
+            agent: Agent::Windsurf,
+            path: "~/.codeium/windsurf/skills".into(),
+            enabled: false,
+            builtin: true,
+        },
     ]
 }
 
@@ -115,7 +165,7 @@ pub fn detect_enabled(t: &Target, env: &Env) -> bool {
     let dir = expand(&t.path, env);
     match t.id.as_str() {
         "codex-legacy" => dir.is_dir(),
-        "gemini" | "grok" => dir.is_dir() || dir.parent().is_some_and(|p| p.is_dir()),
+        "gemini" | "grok" | "antigravity" | "cursor" | "windsurf" => dir.is_dir() || dir.parent().is_some_and(|p| p.is_dir()),
         _ => t.enabled,
     }
 }
@@ -238,6 +288,17 @@ mod tests {
         assert!(!detect_enabled(gemini, &env));
         std::fs::create_dir_all(t.path().join(".gemini")).unwrap();
         assert!(detect_enabled(gemini, &env));
+        let cursor = b.iter().find(|x| x.id == "cursor").unwrap();
+        assert!(!detect_enabled(cursor, &env));
+        std::fs::create_dir_all(t.path().join(".cursor")).unwrap();
+        assert!(detect_enabled(cursor, &env));
+        let ag = b.iter().find(|x| x.id == "antigravity").unwrap();
+        assert_eq!(expand(&ag.path, &env), t.path().join(".gemini/antigravity/skills"));
+        assert!(!detect_enabled(ag, &env), "~/.gemini alone is Gemini CLI, not Antigravity");
+        std::fs::create_dir_all(t.path().join(".gemini/antigravity")).unwrap();
+        assert!(detect_enabled(ag, &env));
+        assert_eq!(Agent::Antigravity.project_subdir(), ".agent/skills");
+        assert_eq!(Agent::from_id("windsurf"), Some(Agent::Windsurf));
         let legacy = b.iter().find(|x| x.id == "codex-legacy").unwrap();
         assert!(!detect_enabled(legacy, &env));
     }
@@ -255,8 +316,10 @@ mod tests {
 
     #[test]
     fn unknown_agent_is_other() {
-        let t: Target = serde_json::from_str(r#"{"id":"x","name":"x","agent":"cursor","path":"/x"}"#).unwrap();
+        let t: Target = serde_json::from_str(r#"{"id":"x","name":"x","agent":"zed","path":"/x"}"#).unwrap();
         assert_eq!(t.agent, Agent::Other);
+        let t: Target = serde_json::from_str(r#"{"id":"x","name":"x","agent":"windsurf","path":"/x"}"#).unwrap();
+        assert_eq!(t.agent, Agent::Windsurf);
         let t: Target = serde_json::from_str(r#"{"id":"x","name":"x","agent":"gemini","path":"/x"}"#).unwrap();
         assert_eq!(t.agent, Agent::Gemini);
         assert!(t.enabled);

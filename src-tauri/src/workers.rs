@@ -1,5 +1,6 @@
 //! 백그라운드 스레드: 폴더 변경 감지, 새 외부 스킬 알림, 창 위치 저장, 업데이트 확인.
 
+use skillslib_core::tr;
 use crate::commands::emit_snapshot;
 use crate::state::AppState;
 use crate::updater;
@@ -75,9 +76,11 @@ pub fn check_external(app: &AppHandle) {
         return;
     }
     let body = if fresh.len() == 1 {
-        format!("{}에 '{}' 스킬이 생겼어요 — 라이브러리로 가져올 수 있어요", fresh[0].1, fresh[0].2)
+        let (place, name) = (&fresh[0].1, &fresh[0].2);
+        tr!("{place}에 '{name}' 스킬이 생겼어요 — 라이브러리로 가져올 수 있어요", "New skill '{name}' in {place} — you can import it into the library")
     } else {
-        format!("설치 위치에 라이브러리에 없는 스킬 {}개가 생겼어요", fresh.len())
+        let n = fresh.len();
+        tr!("설치 위치에 라이브러리에 없는 스킬 {n}개가 생겼어요", "{n} new skills not in the library appeared in install locations")
     };
-    let _ = app.notification().builder().title("새 스킬").body(body).show();
+    let _ = app.notification().builder().title(tr!("새 스킬", "New skill")).body(body).show();
 }

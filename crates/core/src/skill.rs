@@ -79,7 +79,7 @@ pub fn parse(raw: &str) -> Parsed {
             p.fm = Some(m);
         }
         Ok(Value::Null) => p.fm = Some(Mapping::new()),
-        Ok(_) => p.fm_error = Some("머리말이 'key: value' 형식이 아니에요".into()),
+        Ok(_) => p.fm_error = Some(tr!("머리말이 'key: value' 형식이 아니에요", "The frontmatter is not in 'key: value' form")),
         Err(e) => p.fm_error = Some(short_yaml_error(&e.to_string())),
     }
     p
@@ -94,7 +94,7 @@ fn short_yaml_error(e: &str) -> String {
 pub fn with_fields(raw: &str, name: &str, description: &str, body: Option<&str>) -> Result<String, String> {
     let p = parse(raw);
     if let Some(e) = p.fm_error {
-        return Err(format!("머리말을 읽을 수 없어서 양식으로 저장할 수 없어요 — 원본 편집에서 고쳐 주세요 ({e})"));
+        return Err(tr!("머리말을 읽을 수 없어서 양식으로 저장할 수 없어요 — 원본 편집에서 고쳐 주세요 ({e})", "The frontmatter cannot be read, so the form cannot save — fix it in the raw editor ({e})"));
     }
     let mut map = p.fm.unwrap_or_default();
     let name_key = Value::String("name".into());

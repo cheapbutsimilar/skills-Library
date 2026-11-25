@@ -19,9 +19,9 @@ fn dest(r: &Resolved, slug: &str) -> PathBuf {
 
 fn lib_hash(lib: &Library, slug: &str) -> Result<String, String> {
     if !lib.exists(slug) {
-        return Err("라이브러리에 그 스킬이 없어요".into());
+        return Err(tr!("라이브러리에 그 스킬이 없어요", "That skill is not in the library"));
     }
-    fsutil::hash_dir(&lib.path(slug)).map_err(|e| format!("스킬을 읽지 못했어요 — {e}"))
+    fsutil::hash_dir(&lib.path(slug)).map_err(|e| tr!("스킬을 읽지 못했어요 — {e}", "Could not read the skill — {e}"))
 }
 
 pub fn current_status(ctx: &Ctx, slug: &str, r: &Resolved) -> Result<Status, String> {
@@ -39,19 +39,21 @@ pub fn install(ctx: &mut Ctx, slug: &str, r: &Resolved) -> Result<(), String> {
         let st = current_status(ctx, slug, r)?;
         if st.needs_attention() {
             let bak = ctx.trash.join(format!("{}-{}-{slug}-overwritten", fsutil::now_ms(), r.target.id));
-            fsutil::copy_tree(&d, &bak.join(slug)).map_err(|e| format!("덮어쓰기 전에 백업하지 못했어요 — {e}"))?;
+            fsutil::copy_tree(&d, &bak.join(slug)).map_err(|e| tr!("덮어쓰기 전에 백업하지 못했어요 — {e}", "Could not back up before overwriting — {e}"))?;
         }
     }
-    fsutil::replace_dir(&ctx.lib.path(slug), &d).map_err(|e| format!("{}에 설치하지 못했어요 — {e}", r.target.name))?;
+    let name = &r.target.name;
+    fsutil::replace_dir(&ctx.lib.path(slug), &d).map_err(|e| tr!("{name}에 설치하지 못했어요 — {e}", "Could not install to {name} — {e}"))?;
     ctx.man.set(&r.target.id, slug, &lh, fsutil::now_ms());
     Ok(())
 }
 
 pub fn uninstall(ctx: &mut Ctx, slug: &str, r: &Resolved) -> Result<(), String> {
     let d = dest(r, slug);
+    let name = &r.target.name;
     if d.exists() || std::fs::symlink_metadata(&d).is_ok() {
         fsutil::move_to_trash(&d, ctx.trash, &format!("{}-{slug}", r.target.id))
-            .map_err(|e| format!("{}에서 지우지 못했어요 — {e}", r.target.name))?;
+            .map_err(|e| tr!("{name}에서 지우지 못했어요 — {e}", "Could not remove from {name} — {e}"))?;
     }
     ctx.man.remove(&r.target.id, slug);
     Ok(())
@@ -61,7 +63,7 @@ pub fn uninstall(ctx: &mut Ctx, slug: &str, r: &Resolved) -> Result<(), String> 
 pub fn pull(ctx: &mut Ctx, slug: &str, r: &Resolved) -> Result<(), String> {
     let d = dest(r, slug);
     if !d.is_dir() {
-        return Err("설치 위치에 그 스킬이 없어요".into());
+        return Err(tr!("설치 위치에 그 스킬이 없어요", "That skill is not in this location"));
     }
     ctx.lib.replace_from(slug, &d, ctx.trash)?;
     let h = lib_hash(ctx.lib, slug)?;
@@ -118,6 +120,27 @@ pub fn push_updates(ctx: &mut Ctx, slugs: &[String], targets: &[Resolved]) -> (V
     (done, errors)
 }
 
+/// 켜진 설치 위치 전부에 한 번에 설치해요. 설치 안 됐거나 업데이트가 있는 곳만 하고,
+/// 따로 고친 설치본(확인 필요)은 건드리지 않아요. 성공한 대상 이름과 실패 메시지를 돌려줘요.
+pub fn install_everywhere(ctx: &mut Ctx, slug: &str, targets: &[Resolved]) -> (Vec<String>, Vec<String>) {
+    let mut done = Vec::new();
+    let mut errors = Vec::new();
+    for r in targets.iter().filter(|r| r.target.enabled) {
+        match current_status(ctx, slug, r) {
+            Ok(Status::NotInstalled) | Ok(Status::LibraryNewer) => match install(ctx, slug, r) {
+                Ok(()) => done.push(r.target.name.clone()),
+                Err(e) => errors.push(e),
+            },
+            Ok(_) => {}
+            Err(e) => {
+                errors.push(e);
+                break;
+            }
+        }
+    }
+    (done, errors)
+}
+
 /// 라이브러리에서 이름이 바뀌었을 때: 예전 이름으로 설치된 곳을 새 이름으로 바꿔요.
 pub fn follow_rename(ctx: &mut Ctx, old: &str, new: &str, targets: &[Resolved]) -> Vec<String> {
     let mut errors = Vec::new();
@@ -131,7 +154,8 @@ pub fn follow_rename(ctx: &mut Ctx, old: &str, new: &str, targets: &[Resolved]) 
         }
         if untouched {
             if let Err(e) = fsutil::move_to_trash(&od, ctx.trash, &format!("{}-{old}-renamed", r.target.id)) {
-                errors.push(format!("{}: 예전 이름을 지우지 못했어요 — {e}", r.target.name));
+                let name = &r.target.name;
+                errors.push(tr!("{name}: 예전 이름을 지우지 못했어요 — {e}", "{name}: could not remove the old name — {e}"));
                 continue;
             }
         }
@@ -236,6 +260,23 @@ mod tests {
         pull(&mut w.ctx(), "alpha", &cc).unwrap();
         assert_eq!(w.st("alpha", 0), Status::Synced);
         assert!(w.lib.path("alpha").join("local.md").is_file());
+    }
+
+    #[test]
+    fn install_everywhere_skips_modified_copies() {
+        let mut w = world();
+        let cc = w.targets[0].clone();
+        install(&mut w.ctx(), "alpha", &cc).unwrap();
+        std::fs::write(w.env.home.join(".claude/skills/alpha/local.md"), "mine").unwrap();
+        let targets = w.targets.clone();
+        let (done, errs) = install_everywhere(&mut w.ctx(), "alpha", &targets);
+        assert!(errs.is_empty());
+        // Claude Code는 따로 고쳐서 그대로, 켜진 나머지(Codex, 예전 Codex)는 설치
+        assert_eq!(done, vec!["Codex".to_string(), "Codex (예전 위치)".to_string()]);
+        assert_eq!(w.st("alpha", 0), Status::TargetModified);
+        assert_eq!(w.st("alpha", 1), Status::Synced);
+        let (done, _) = install_everywhere(&mut w.ctx(), "alpha", &targets);
+        assert!(done.is_empty());
     }
 
     #[test]

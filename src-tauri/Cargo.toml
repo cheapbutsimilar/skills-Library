@@ -3,7 +3,7 @@ name = "skills-library"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Claude · Claude Code · Codex 스킬 관리 라이브러리"
+description = "One library for your agent skills (desktop app)"
 publish = false
 
 [lib]
@@ -25,3 +25,7 @@ tauri-plugin-updater = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# GitHub에서 스킬 받기. 업데이터 플러그인과 같은 reqwest·rustls(ring)를 써서 새로 받는 크레이트가 거의 없어요.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+sys-locale = "0.3"

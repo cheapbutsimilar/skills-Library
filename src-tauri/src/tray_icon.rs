@@ -1,5 +1,6 @@
 //! 트레이 아이콘을 직접 그려요: 책꽂이 모양 + 할 일이 있으면 오른쪽 위에 점.
 
+use skillslib_core::tr;
 use skillslib_core::snapshot::Counts;
 use tauri::image::Image;
 use tauri::AppHandle;
@@ -76,12 +77,13 @@ pub fn update(app: &AppHandle, c: &Counts) {
     let Some(tray) = app.tray_by_id(crate::menu::TRAY) else { return };
     let badge = c.updates > 0 || c.attention > 0;
     let _ = tray.set_icon(Some(image(badge)));
-    let mut tip = format!("Skills Library — 스킬 {}개", c.skills);
-    if c.updates > 0 {
-        tip.push_str(&format!(" · 업데이트 {}개", c.updates));
+    let (n, u, a) = (c.skills, c.updates, c.attention);
+    let mut tip = tr!("Skills Library — 스킬 {n}개", "Skills Library — {n} skill(s)");
+    if u > 0 {
+        tip.push_str(&tr!(" · 업데이트 {u}개", " · {u} update(s)"));
     }
-    if c.attention > 0 {
-        tip.push_str(&format!(" · 확인 필요 {}개", c.attention));
+    if a > 0 {
+        tip.push_str(&tr!(" · 확인 필요 {a}개", " · {a} need attention"));
     }
     let _ = tray.set_tooltip(Some(tip));
 }

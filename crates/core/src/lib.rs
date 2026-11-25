@@ -10,8 +10,15 @@
 //! - [`snapshot`] — 화면에 보낼 전체 상태
 //! - [`settings`] — 설정 스키마·검증·마이그레이션
 //! - [`zipio`] — Claude 앱용 ZIP 내보내기·가져오기
+//! - [`github`] — GitHub 저장소·폴더 URL에서 스킬 가져오기
+//! - [`diff`] — 라이브러리 원본과 설치본 비교
+//! - [`i18n`] — 영어·한국어 메시지
 
+#[macro_use]
+pub mod i18n;
 pub mod atomic;
+pub mod diff;
+pub mod github;
 pub mod cleanup;
 pub mod fsutil;
 pub mod library;

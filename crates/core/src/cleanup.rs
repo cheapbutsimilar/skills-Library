@@ -137,7 +137,7 @@ pub fn plan(lib: &Library, targets: &[Resolved], man: &Manifest, env: &Env) -> P
             continue;
         }
         let mut versions = Vec::new();
-        add_version(&mut versions, &lh, &lpath, Place { id: LIBRARY.into(), name: "라이브러리".into(), agent: None });
+        add_version(&mut versions, &lh, &lpath, Place { id: LIBRARY.into(), name: tr!("라이브러리", "Library"), agent: None });
         for (r, f) in copies {
             let place = Place { id: r.target.id.clone(), name: r.target.name.clone(), agent: Some(r.target.agent) };
             add_version(&mut versions, &f.hash, &f.path, place);
@@ -216,14 +216,14 @@ fn hash_of(dir: &Path) -> Option<String> {
 /// 고른 버전으로 라이브러리와 설치된 곳 전부를 맞춰요.
 fn unify(ctx: &mut Ctx, slug: &str, want: &str, targets: &[Resolved]) -> Result<(), String> {
     if !ctx.lib.exists(slug) {
-        return Err("라이브러리에 없어요".into());
+        return Err(tr!("라이브러리에 없어요", "It is not in the library"));
     }
     let enabled: Vec<&Resolved> = targets.iter().filter(|r| r.target.enabled).collect();
     if hash_of(&ctx.lib.path(slug)).as_deref() != Some(want) {
         let src = enabled
             .iter()
             .find(|r| hash_of(&r.dir.join(slug)).as_deref() == Some(want))
-            .ok_or("고른 버전을 찾지 못했어요 — 그 사이에 바뀌었어요. 다시 열어 주세요")?;
+            .ok_or_else(|| tr!("고른 버전을 찾지 못했어요 — 그 사이에 바뀌었어요. 다시 열어 주세요", "Could not find the chosen version — it changed in the meantime. Please reopen"))?;
         ops::pull(ctx, slug, src)?;
     }
     for r in enabled {
@@ -256,12 +256,12 @@ pub fn apply(ctx: &mut Ctx, targets: &[Resolved], c: &Choices) -> Report {
             for f in scan(&from.dir) {
                 let slug = &f.dir;
                 let Some(lh) = hash_of(&ctx.lib.path(slug)) else {
-                    rep.skipped.push(format!("{slug}: 라이브러리에 없어서 그대로 뒀어요"));
+                    rep.skipped.push(tr!("{slug}: 라이브러리에 없어서 그대로 뒀어요", "{slug}: left as is because it is not in the library"));
                     continue;
                 };
                 let there = hash_of(&to.dir.join(slug));
                 if f.hash != lh || there.as_ref().is_some_and(|h| *h != lh) {
-                    rep.skipped.push(format!("{slug}: 내용이 서로 달라서 그대로 뒀어요 — 버전을 먼저 골라 주세요"));
+                    rep.skipped.push(tr!("{slug}: 내용이 서로 달라서 그대로 뒀어요 — 버전을 먼저 골라 주세요", "{slug}: left as is because the copies differ — pick a version first"));
                     continue;
                 }
                 if there.is_none() {

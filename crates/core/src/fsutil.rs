@@ -135,7 +135,7 @@ pub fn dir_stats(dir: &Path) -> DirStats {
 /// `src` 폴더 내용을 `dst`에 새로 만들어요. `dst`가 있으면 통째로 바꿔요.
 /// 임시 폴더에 다 복사한 다음 바꿔치기해서, 중간에 실패해도 원래 폴더가 남아요.
 pub fn replace_dir(src: &Path, dst: &Path) -> io::Result<()> {
-    let parent = dst.parent().ok_or_else(|| io::Error::other("상위 폴더가 없어요"))?;
+    let parent = dst.parent().ok_or_else(|| io::Error::other(tr!("상위 폴더가 없어요", "There is no parent folder")))?;
     fs::create_dir_all(parent)?;
     let name = dst.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     let stamp = now_ms();

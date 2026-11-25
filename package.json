@@ -2,7 +2,7 @@
   "name": "skills-library",
   "private": true,
   "version": "0.1.0",
-  "description": "Claude · Claude Code · Codex 스킬 관리 라이브러리",
+  "description": "One library for your agent skills — Claude, Claude Code, Codex, Gemini CLI, Grok Build, Antigravity, Cursor, Windsurf",
   "scripts": {
     "tauri": "tauri",
     "preview": "cargo run -p skillslib-devserver",
@@ -10,6 +10,7 @@
     "test": "cargo test --workspace",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings && node scripts/check-ui.js",
     "screenshots": "node scripts/preview.js",
+    "demo": "node scripts/demo-gif.js && LANG_UI=ko OUT=docs/screenshots/demo-ko.gif node scripts/demo-gif.js",
     "icons": "python3 scripts/make-icons.py && tauri icon scripts/icon-source.png -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios",
     "build": "tauri build",
     "build:win": "tauri build --target x86_64-pc-windows-gnu --bundles nsis"

@@ -3,9 +3,10 @@
 //! 창을 만들거나 닫거나, 대화상자를 여는 명령은 Windows WebView2 교착을 피하려고 모두 `async`예요 (HANDOFF §5.1).
 //! 무언가 바꾸는 명령은 끝나면 새 스냅샷을 모든 창에 뿌리고, 호출한 쪽에도 돌려줘요.
 
+use skillslib_core::tr;
 use crate::state::AppState;
 use crate::updater::{self, UpdateInfo};
-use crate::{apply, hotkeys, windows};
+use crate::{apply, github, hotkeys, menu, windows};
 use serde::Serialize;
 use serde_json::Value;
 use skillslib_core::library::SkillDetail;
@@ -16,7 +17,7 @@ use skillslib_core::skill;
 use skillslib_core::snapshot::{Resolved, Snapshot};
 use skillslib_core::targets::{Agent, CLAUDE_APP};
 use skillslib_core::validate::{self, Issue};
-use skillslib_core::{fsutil, zipio};
+use skillslib_core::{diff, fsutil, i18n, zipio};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -37,7 +38,7 @@ pub fn toast(app: &AppHandle, msg: &str) {
 }
 
 fn find_target(targets: &[Resolved], id: &str) -> Res<Resolved> {
-    targets.iter().find(|r| r.target.id == id).cloned().ok_or_else(|| "그 설치 위치를 찾지 못했어요".to_string())
+    targets.iter().find(|r| r.target.id == id).cloned().ok_or_else(|| tr!("그 설치 위치를 찾지 못했어요", "Could not find that install location"))
 }
 
 /// 자동 동기화가 켜져 있으면, 따로 고치지 않은 설치본을 업데이트해요.
@@ -295,6 +296,109 @@ pub struct ImportResult {
     snapshot: Snapshot,
 }
 
+fn import_roots(lib: &skillslib_core::library::Library, roots: &[PathBuf], label: &str) -> (Vec<String>, Vec<String>) {
+    let mut slugs = Vec::new();
+    let mut errors = Vec::new();
+    for r in roots {
+        match lib.import_dir(r, None) {
+            Ok(s) => slugs.push(s),
+            Err(e) => errors.push(format!("{label}: {e}")),
+        }
+    }
+    (slugs, errors)
+}
+
+/// GitHub 저장소·하위 폴더 URL에서 스킬을 받아 검사하고 라이브러리에 넣어요.
+/// 오류가 있는 스킬은 건너뛰고 이유를 `errors`에 담아요.
+#[tauri::command]
+pub async fn import_github(app: AppHandle, url: String) -> Res<ImportResult> {
+    let st = app.state::<AppState>();
+    let tmp = st.paths.tmp.clone();
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    let f = github::fetch(&url, &tmp).await?;
+    let cleanup = || {
+        if let Some(d) = f.root.parent() {
+            let _ = std::fs::remove_dir_all(d);
+        }
+    };
+    let (roots, skipped) = skillslib_core::github::validated_roots(&f.root);
+    if roots.is_empty() {
+        cleanup();
+        return Err(match skipped.first() {
+            Some(e) => tr!("가져올 수 있는 스킬이 없어요 — {e}", "No importable skills — {e}"),
+            None => {
+                let l = &f.label;
+                tr!("{l}에서 SKILL.md가 있는 폴더를 찾지 못했어요", "No folder with a SKILL.md was found in {l}")
+            }
+        });
+    }
+    let (slugs, mut errors) = import_roots(&st.library(), &roots, &f.label);
+    errors.extend(skipped);
+    cleanup();
+    Ok(ImportResult { slugs, errors, snapshot: emit_snapshot(&app) })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiffResult {
+    slug: String,
+    target: String,
+    target_name: String,
+    library_path: String,
+    installed_path: String,
+    diff: diff::DirDiff,
+}
+
+/// 라이브러리 원본과 설치본의 차이를 보여줘요 (덮어쓰기·가져오기 전에).
+#[tauri::command]
+pub async fn diff(st: State<'_, AppState>, slug: String, target: String) -> Res<DiffResult> {
+    if slug.is_empty() || !fsutil::safe_rel(&slug) || slug.contains(['/', '\\']) {
+        return Err(tr!("스킬 이름이 올바르지 않아요", "The skill name is not valid"));
+    }
+    let resolved = st.resolved(&st.settings());
+    let r = find_target(&resolved, &target)?;
+    let lib = st.library();
+    if !lib.exists(&slug) {
+        return Err(tr!("라이브러리에 그 스킬이 없어요", "That skill is not in the library"));
+    }
+    let inst = r.dir.join(&slug);
+    if !inst.is_dir() {
+        return Err(tr!("설치 위치에 그 스킬이 없어요", "That skill is not in this location"));
+    }
+    let lp = lib.path(&slug);
+    Ok(DiffResult {
+        diff: diff::compare(&lp, &inst),
+        library_path: lp.to_string_lossy().into(),
+        installed_path: inst.to_string_lossy().into(),
+        target_name: r.target.name.clone(),
+        target,
+        slug,
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallAllResult {
+    done: Vec<String>,
+    errors: Vec<String>,
+    snapshot: Snapshot,
+}
+
+/// 켜진 설치 위치 전부에 한 번에 설치·업데이트해요. 따로 고친 설치본은 그대로 둬요.
+#[tauri::command]
+pub async fn install_all(app: AppHandle, st: State<'_, AppState>, slug: String) -> Res<InstallAllResult> {
+    let (done, errors) = st.with_ops(|ctx, targets, _| ops::install_everywhere(ctx, &slug, targets));
+    Ok(InstallAllResult { done, errors, snapshot: emit_snapshot(&app) })
+}
+
+/// 화면 언어가 정해지거나 바뀌면 불러요. 앱 메시지·트레이 메뉴도 그 언어로 바꿔요.
+#[tauri::command]
+pub async fn set_lang(app: AppHandle, lang: String) -> Res<Snapshot> {
+    i18n::set_lang(&lang);
+    menu::relabel(&app);
+    Ok(emit_snapshot(&app))
+}
+
 /// 폴더·ZIP·SKILL.md 경로들을 라이브러리로 가져와요 (대화상자·끌어다 놓기 공통).
 pub fn import_paths_inner(app: &AppHandle, paths: &[PathBuf]) -> ImportResult {
     let st = app.state::<AppState>();
@@ -313,21 +417,18 @@ pub fn import_paths_inner(app: &AppHandle, paths: &[PathBuf]) -> ImportResult {
         } else if p.is_dir() {
             let r = zipio::find_skill_roots(p, 2);
             if r.is_empty() {
-                Err("SKILL.md가 있는 폴더를 찾지 못했어요".into())
+                Err(tr!("SKILL.md가 있는 폴더를 찾지 못했어요", "No folder with a SKILL.md was found"))
             } else {
                 Ok((r, None))
             }
         } else {
-            Err("폴더, ZIP, .skill, SKILL.md만 가져올 수 있어요".into())
+            Err(tr!("폴더, ZIP, .skill, SKILL.md만 가져올 수 있어요", "Only folders, ZIP, .skill and SKILL.md can be imported"))
         };
         match roots {
             Ok((roots, tmp)) => {
-                for r in roots {
-                    match lib.import_dir(&r, None) {
-                        Ok(s) => slugs.push(s),
-                        Err(e) => errors.push(format!("{label}: {e}")),
-                    }
-                }
+                let (s, e) = import_roots(&lib, &roots, &label);
+                slugs.extend(s);
+                errors.extend(e);
                 if let Some(t) = tmp {
                     let _ = std::fs::remove_dir_all(t);
                 }
@@ -340,9 +441,9 @@ pub fn import_paths_inner(app: &AppHandle, paths: &[PathBuf]) -> ImportResult {
 
 #[tauri::command]
 pub async fn import_pick(app: AppHandle, kind: String) -> Res<Option<ImportResult>> {
-    let d = app.dialog().file().set_title("스킬 가져오기");
+    let d = app.dialog().file().set_title(tr!("스킬 가져오기", "Import skills"));
     let picked: Option<Vec<PathBuf>> = if kind == "zip" {
-        d.add_filter("스킬 ZIP", &["zip", "skill"])
+        d.add_filter(tr!("스킬 ZIP", "Skill ZIP"), &["zip", "skill"])
             .blocking_pick_files()
             .map(|v| v.into_iter().filter_map(|f| f.into_path().ok()).collect())
     } else {
@@ -362,9 +463,9 @@ pub async fn import_paths(app: AppHandle, paths: Vec<String>) -> Res<ImportResul
 pub async fn export_zip(app: AppHandle, st: State<'_, AppState>, slug: String) -> Res<Option<String>> {
     let lib = st.library();
     if !lib.exists(&slug) {
-        return Err("라이브러리에 그 스킬이 없어요".into());
+        return Err(tr!("라이브러리에 그 스킬이 없어요", "That skill is not in the library"));
     }
-    let mut d = app.dialog().file().set_title("Claude 앱용 ZIP 저장").set_file_name(format!("{slug}.zip")).add_filter("ZIP", &["zip"]);
+    let mut d = app.dialog().file().set_title(tr!("Claude 앱용 ZIP 저장", "Save ZIP for the Claude app")).set_file_name(format!("{slug}.zip")).add_filter("ZIP", &["zip"]);
     if let Ok(dl) = app.path().download_dir() {
         d = d.set_directory(dl);
     }
@@ -372,7 +473,7 @@ pub async fn export_zip(app: AppHandle, st: State<'_, AppState>, slug: String) -
         return Ok(None);
     };
     let out = if out.extension().is_none() { out.with_extension("zip") } else { out };
-    zipio::export(&lib.path(&slug), &slug, &out).map_err(|e| format!("ZIP을 만들지 못했어요 — {e}"))?;
+    zipio::export(&lib.path(&slug), &slug, &out).map_err(|e| tr!("ZIP을 만들지 못했어요 — {e}", "Could not create the ZIP — {e}"))?;
     let hash = fsutil::hash_dir(&lib.path(&slug)).unwrap_or_default();
     {
         let mut g = st.lock();
@@ -426,24 +527,21 @@ pub async fn cleanup_apply(app: AppHandle, st: State<'_, AppState>, choices: cle
 }
 
 /// 프로젝트 폴더를 골라 설치 위치로 추가해요.
-/// agents: 쉼표로 나눈 claude-code, codex, gemini, grok (예전 값 "both"는 Claude Code + Codex)
+/// agents: 쉼표로 나눈 claude-code, codex, gemini, grok, antigravity, cursor, windsurf (예전 값 "both"는 Claude Code + Codex)
 #[tauri::command]
 pub async fn target_add_project(app: AppHandle, st: State<'_, AppState>, agent: String) -> Res<Option<Settings>> {
     let mut agents: Vec<Agent> = Vec::new();
     for a in agent.split(',').map(str::trim) {
-        match a {
-            "claude-code" => agents.push(Agent::ClaudeCode),
-            "codex" => agents.push(Agent::Codex),
-            "gemini" => agents.push(Agent::Gemini),
-            "grok" => agents.push(Agent::Grok),
-            "both" => agents.extend([Agent::ClaudeCode, Agent::Codex]),
-            _ => {}
+        if a == "both" {
+            agents.extend([Agent::ClaudeCode, Agent::Codex]);
+        } else if let Some(x) = Agent::from_id(a) {
+            agents.push(x);
         }
     }
     if agents.is_empty() {
-        return Err("에이전트를 하나 이상 골라 주세요".into());
+        return Err(tr!("에이전트를 하나 이상 골라 주세요", "Pick at least one agent"));
     }
-    let Some(dir) = pick_folder(&app, "프로젝트 폴더 고르기") else { return Ok(None) };
+    let Some(dir) = pick_folder(&app, &tr!("프로젝트 폴더 고르기", "Choose a project folder")) else { return Ok(None) };
     let label = folder_label(&dir);
     let (old, new, added) = {
         let mut g = st.lock();
@@ -459,7 +557,7 @@ pub async fn target_add_project(app: AppHandle, st: State<'_, AppState>, agent: 
         (old, g.settings.clone(), added)
     };
     if added == 0 {
-        return Err("이미 추가된 프로젝트예요".into());
+        return Err(tr!("이미 추가된 프로젝트예요", "That project is already added"));
     }
     st.save_settings()?;
     apply::apply(&app, &old, &new);
@@ -469,12 +567,12 @@ pub async fn target_add_project(app: AppHandle, st: State<'_, AppState>, agent: 
 /// 설치 위치 폴더를 바꿔요.
 #[tauri::command]
 pub async fn target_pick_path(app: AppHandle, st: State<'_, AppState>, id: String) -> Res<Option<Settings>> {
-    let Some(dir) = pick_folder(&app, "스킬 폴더 고르기") else { return Ok(None) };
+    let Some(dir) = pick_folder(&app, &tr!("스킬 폴더 고르기", "Choose a skills folder")) else { return Ok(None) };
     let (old, new) = {
         let mut g = st.lock();
         let old = g.settings.clone();
         let mut s = old.clone();
-        let t = s.targets.iter_mut().find(|t| t.id == id).ok_or("그 설치 위치를 찾지 못했어요")?;
+        let t = s.targets.iter_mut().find(|t| t.id == id).ok_or_else(|| tr!("그 설치 위치를 찾지 못했어요", "Could not find that install location"))?;
         t.path = dir.to_string_lossy().into();
         s.sanitize();
         g.manifest.remove_target(&id);
@@ -490,7 +588,7 @@ pub async fn target_pick_path(app: AppHandle, st: State<'_, AppState>, id: Strin
 /// 기본 경로로 되돌려요 (기본 대상만).
 #[tauri::command]
 pub async fn target_reset_path(app: AppHandle, st: State<'_, AppState>, id: String) -> Res<Settings> {
-    let def = skillslib_core::targets::builtin_targets().into_iter().find(|t| t.id == id).ok_or("기본 설치 위치가 아니에요")?;
+    let def = skillslib_core::targets::builtin_targets().into_iter().find(|t| t.id == id).ok_or_else(|| tr!("기본 설치 위치가 아니에요", "Not a built-in install location"))?;
     let (old, new) = {
         let mut g = st.lock();
         let old = g.settings.clone();
@@ -513,7 +611,7 @@ pub async fn target_remove(app: AppHandle, st: State<'_, AppState>, id: String) 
         let mut g = st.lock();
         let old = g.settings.clone();
         if old.target(&id).is_some_and(|t| t.builtin) {
-            return Err("기본 설치 위치는 끌 수만 있어요".into());
+            return Err(tr!("기본 설치 위치는 끌 수만 있어요", "Built-in install locations can only be turned off"));
         }
         g.settings.targets.retain(|t| t.id != id);
         g.manifest.remove_target(&id);
@@ -528,17 +626,17 @@ pub async fn target_remove(app: AppHandle, st: State<'_, AppState>, id: String) 
 /// 라이브러리 폴더를 바꿔요. 새 폴더가 비어 있으면 지금 스킬을 복사해 가요.
 #[tauri::command]
 pub async fn library_change_dir(app: AppHandle, st: State<'_, AppState>) -> Res<Option<Settings>> {
-    let Some(dir) = pick_folder(&app, "라이브러리 폴더 고르기") else { return Ok(None) };
+    let Some(dir) = pick_folder(&app, &tr!("라이브러리 폴더 고르기", "Choose a library folder")) else { return Ok(None) };
     let cur = st.library_dir(&st.settings());
     if dir == cur {
         return Ok(Some(st.settings()));
     }
     if dir.starts_with(&cur) {
-        return Err("지금 라이브러리 폴더 안쪽은 고를 수 없어요".into());
+        return Err(tr!("지금 라이브러리 폴더 안쪽은 고를 수 없어요", "You cannot pick a folder inside the current library folder"));
     }
     let empty = std::fs::read_dir(&dir).map(|mut r| r.next().is_none()).unwrap_or(true);
     if empty && cur.is_dir() {
-        fsutil::copy_tree(&cur, &dir).map_err(|e| format!("스킬을 새 폴더로 복사하지 못했어요 — {e}"))?;
+        fsutil::copy_tree(&cur, &dir).map_err(|e| tr!("스킬을 새 폴더로 복사하지 못했어요 — {e}", "Could not copy skills to the new folder — {e}"))?;
     }
     settings_set(app.clone(), st, serde_json::json!({ "libraryDir": dir.to_string_lossy() })).await.map(Some)
 }
@@ -553,7 +651,7 @@ pub async fn open_path(app: AppHandle, path: String) -> Res<()> {
     } else if let Some(parent) = p.ancestors().find(|a| a.is_dir()) {
         app.opener().open_path(parent.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
     } else {
-        Err("폴더가 아직 없어요".into())
+        Err(tr!("폴더가 아직 없어요", "The folder does not exist yet"))
     }
 }
 
@@ -577,7 +675,7 @@ pub async fn open_special(app: AppHandle, st: State<'_, AppState>, which: String
 #[tauri::command]
 pub async fn open_url(app: AppHandle, url: String) -> Res<()> {
     if !url.starts_with("https://") {
-        return Err("https 주소만 열 수 있어요".into());
+        return Err(tr!("https 주소만 열 수 있어요", "Only https URLs can be opened"));
     }
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }

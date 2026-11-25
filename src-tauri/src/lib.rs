@@ -2,6 +2,7 @@
 
 mod apply;
 mod commands;
+mod github;
 mod hotkeys;
 mod menu;
 mod state;
@@ -111,6 +112,10 @@ pub fn run() {
             commands::cleanup_apply,
             commands::import_pick,
             commands::import_paths,
+            commands::import_github,
+            commands::diff,
+            commands::install_all,
+            commands::set_lang,
             commands::export_zip,
             commands::target_add_project,
             commands::target_pick_path,

@@ -72,7 +72,12 @@ jobs:
           args: --config src-tauri/tauri.release.conf.json
           tagName: v__VERSION__
           releaseName: Skills Library v__VERSION__
-          releaseBody: 설치 파일(.exe)을 받아 실행하세요. 이미 설치했다면 앱이 알아서 업데이트해요.
+          releaseBody: |
+            Download the `…_x64-setup.exe` below and run it. If Skills Library is already installed, it updates itself.
+            Windows SmartScreen may warn on first launch because the installer is not code-signed yet — click **More info → Run anyway**.
+
+            아래 `…_x64-setup.exe`를 받아 실행하세요. 이미 설치했다면 앱이 알아서 업데이트해요.
+            설치 파일에 코드 서명 인증서가 없어서 처음 실행할 때 SmartScreen 경고가 뜰 수 있어요 — **추가 정보 → 실행**을 누르세요.
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true

@@ -34,10 +34,10 @@ pub fn export(skill_dir: &Path, slug: &str, out: &Path) -> io::Result<()> {
 /// ZIP(또는 .skill)을 `dest`에 풀고, 그 안의 스킬 폴더들을 돌려줘요.
 /// 폴더 밖으로 나가는 경로(zip slip)는 막아요.
 pub fn extract(zip_path: &Path, dest: &Path) -> Result<Vec<PathBuf>, String> {
-    let f = fs::File::open(zip_path).map_err(|e| format!("파일을 열지 못했어요 — {e}"))?;
-    let mut za = zip::ZipArchive::new(f).map_err(|_| "ZIP 파일이 아니거나 깨졌어요".to_string())?;
+    let f = fs::File::open(zip_path).map_err(|e| tr!("파일을 열지 못했어요 — {e}", "Could not open the file — {e}"))?;
+    let mut za = zip::ZipArchive::new(f).map_err(|_| tr!("ZIP 파일이 아니거나 깨졌어요", "Not a ZIP file, or it is damaged"))?;
     if za.len() > MAX_ENTRIES {
-        return Err("ZIP 안에 파일이 너무 많아요".into());
+        return Err(tr!("ZIP 안에 파일이 너무 많아요", "The ZIP has too many files"));
     }
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     let mut total = 0u64;
@@ -57,7 +57,7 @@ pub fn extract(zip_path: &Path, dest: &Path) -> Result<Vec<PathBuf>, String> {
         }
         total += entry.size();
         if total > MAX_TOTAL {
-            return Err("ZIP 내용이 너무 커요 (200MB까지)".into());
+            return Err(tr!("ZIP 내용이 너무 커요 (200MB까지)", "The ZIP content is too large (200 MB max)"));
         }
         if let Some(p) = out.parent() {
             fs::create_dir_all(p).map_err(|e| e.to_string())?;
@@ -68,7 +68,7 @@ pub fn extract(zip_path: &Path, dest: &Path) -> Result<Vec<PathBuf>, String> {
     }
     let roots = find_skill_roots(dest, 3);
     if roots.is_empty() {
-        return Err("ZIP 안에서 SKILL.md를 찾지 못했어요".into());
+        return Err(tr!("ZIP 안에서 SKILL.md를 찾지 못했어요", "No SKILL.md found in the ZIP"));
     }
     Ok(roots)
 }

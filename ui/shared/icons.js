@@ -32,17 +32,25 @@
     file: svg('<path d="M4 1.8h5.5L13 5.3V14a.5.5 0 0 1-.5.5h-8.5A.5.5 0 0 1 3.5 14V2.3a.5.5 0 0 1 .5-.5z"/><path d="M9.5 1.8v3.5H13"/>'),
     link: svg('<path d="M9 3h4v4M13 3 7.5 8.5"/><path d="M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/>'),
     sync: svg('<path d="M2.5 6.5A5.5 5.5 0 0 1 12.6 4.5M13.5 9.5A5.5 5.5 0 0 1 3.4 11.5"/><path d="M12.8 2v2.8H10M3.2 14v-2.8H6"/>'),
+    diff: svg('<path d="M5 2.5v7M1.5 6h7"/><path d="M8 13.5h6.5"/><path d="M11 2.5 14.5 6 11 9.5"/>'),
+    heart: svg('<path d="M8 13.5S2 10 2 5.9A3.1 3.1 0 0 1 8 4.6a3.1 3.1 0 0 1 6 1.3C14 10 8 13.5 8 13.5z"/>'),
+    // GitHub 마크 (Octicons mark-github, MIT) — 채운 모양이라 stroke 대신 fill
+    github: '<svg class="ic" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>',
     pull: svg('<path d="M8 13.5v-8M4.8 8.6 8 5.4l3.2 3.2"/><path d="M2.5 2.5h11"/>'),
   };
 
   // 에이전트 → 공식 로고 (ui/shared/logos.js)
+  const t = k => (window.SL_I18N ? window.SL_I18N.t(k) : k);
   const AGENTS = {
     'claude-code': { label: 'Claude Code', logo: 'claudecode-color' },
     'codex': { label: 'Codex', logo: 'codex-color' },
     'gemini': { label: 'Gemini CLI', logo: 'geminicli-color' },
     'grok': { label: 'Grok Build', logo: 'grok' },
-    'claude-app': { label: 'Claude 앱', logo: 'claude-color' },
-    'other': { label: '기타', logo: null },
+    'antigravity': { label: 'Antigravity', logo: 'antigravity-color' },
+    'cursor': { label: 'Cursor', logo: 'cursor' },
+    'windsurf': { label: 'Windsurf', logo: 'windsurf' },
+    'claude-app': { label: () => t('Claude 앱'), logo: 'claude-color' },
+    'other': { label: () => t('기타'), logo: null },
   };
 
   // 같은 로고를 여러 번 그려도 그라데이션 id가 겹치지 않게 매번 새 id를 붙여요.
@@ -58,7 +66,7 @@
   /** size: '' (18px) | 'lg' (타일 안 22px) */
   function agentBadge(agent, size) {
     const a = AGENTS[agent] || AGENTS.other;
-    return `<span class="agent ${size || ''}" title="${a.label}">${a.logo ? logo(a.logo) : I.folder}</span>`;
+    return `<span class="agent ${size || ''}" title="${typeof a.label === 'function' ? a.label() : a.label}">${a.logo ? logo(a.logo) : I.folder}</span>`;
   }
 
   window.SL_ICONS = { I, AGENTS, agentBadge, logo };

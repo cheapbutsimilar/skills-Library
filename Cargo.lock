@@ -3913,9 +3913,12 @@ checksum = "33f4fe9184a62d842c9ef383018f3306d8ba224fd9d836f56d7288308847c256"
 name = "skills-library"
 version = "0.1.0"
 dependencies = [
+ "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "skillslib-core",
+ "sys-locale",
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
@@ -4161,6 +4164,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.10",
+]
+
+[[package]]
+name = "sys-locale"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eab9a99a024a169fe8a903cf9d4a3b3601109bcc13bd9e3c6fff259138626c4"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

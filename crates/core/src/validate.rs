@@ -54,58 +54,58 @@ fn has_xml_tag(s: &str) -> bool {
 pub fn check(p: &Parsed, dir_name: &str, has_skill_md: bool) -> Vec<Issue> {
     let mut out = Vec::new();
     if !has_skill_md {
-        out.push(err("no-skill-md", format!("{} 파일이 없어요", skill::SKILL_FILE)));
+        out.push(err("no-skill-md", tr!("SKILL.md 파일이 없어요", "There is no SKILL.md file")));
         return out;
     }
     if !p.has_frontmatter {
-        out.push(err("no-frontmatter", "맨 위에 ---로 감싼 머리말(name, description)이 필요해요"));
+        out.push(err("no-frontmatter", tr!("맨 위에 ---로 감싼 머리말(name, description)이 필요해요", "A frontmatter block wrapped in --- (name, description) is required at the top")));
         return out;
     }
     if let Some(e) = &p.fm_error {
-        out.push(err("yaml", format!("머리말 YAML을 읽을 수 없어요 — {e}")));
+        out.push(err("yaml", tr!("머리말 YAML을 읽을 수 없어요 — {e}", "The frontmatter YAML cannot be read — {e}")));
         return out;
     }
 
     let name = p.name.as_str();
     let n = name.chars().count();
     if name.is_empty() {
-        out.push(err("name-empty", "name이 비어 있어요"));
+        out.push(err("name-empty", tr!("name이 비어 있어요", "name is empty")));
     } else if n > NAME_MAX {
-        out.push(err("name-long", format!("name은 {NAME_MAX}자까지예요 (지금 {n}자)")));
+        out.push(err("name-long", tr!("name은 {NAME_MAX}자까지예요 (지금 {n}자)", "name can be up to {NAME_MAX} characters (now {n})")));
     } else if !skill::is_valid_name(name) {
-        out.push(err("name-chars", "name은 영어 소문자·숫자·하이픈(-)만 쓸 수 있어요 (하이픈은 처음·끝·연속 불가)"));
+        out.push(err("name-chars", tr!("name은 영어 소문자·숫자·하이픈(-)만 쓸 수 있어요 (하이픈은 처음·끝·연속 불가)", "name may only use lowercase letters, digits and hyphens (no leading, trailing or double hyphens)")));
     }
     if !name.is_empty() && (name.contains("claude") || name.contains("anthropic")) {
-        out.push(warn("name-reserved", "name에 'claude'·'anthropic'이 들어가면 Claude 앱에 올릴 수 없어요"));
+        out.push(warn("name-reserved", tr!("name에 'claude'·'anthropic'이 들어가면 Claude 앱에 올릴 수 없어요", "Names containing 'claude' or 'anthropic' cannot be uploaded to the Claude app")));
     }
     if !name.is_empty() && skill::is_valid_name(name) && name != dir_name {
         out.push(warn(
             "name-dir",
-            format!("폴더 이름({dir_name})과 name이 달라요 — 저장하면 폴더 이름을 name에 맞춰요"),
+            tr!("폴더 이름({dir_name})과 name이 달라요 — 저장하면 폴더 이름을 name에 맞춰요", "The folder name ({dir_name}) differs from name — saving renames the folder to match"),
         ));
     }
 
     let d = p.description.as_str();
     let dn = d.chars().count();
     if d.is_empty() {
-        out.push(err("desc-empty", "description이 비어 있어요 — 언제 쓰는 스킬인지 적어 주세요"));
+        out.push(err("desc-empty", tr!("description이 비어 있어요 — 언제 쓰는 스킬인지 적어 주세요", "description is empty — say when the skill should be used")));
     } else if dn > DESC_MAX {
-        out.push(err("desc-long", format!("description은 {DESC_MAX}자까지예요 (지금 {dn}자)")));
+        out.push(err("desc-long", tr!("description은 {DESC_MAX}자까지예요 (지금 {dn}자)", "description can be up to {DESC_MAX} characters (now {dn})")));
     }
     if has_xml_tag(d) {
-        out.push(err("desc-xml", "description에 XML 태그(<…>)는 쓸 수 없어요"));
+        out.push(err("desc-xml", tr!("description에 XML 태그(<…>)는 쓸 수 없어요", "description cannot contain XML tags (<…>)")));
     }
     if !d.is_empty() && dn < 20 {
-        out.push(warn("desc-short", "description이 짧아요 — 무엇을 하고 언제 쓰는지 적으면 에이전트가 더 잘 골라요"));
+        out.push(warn("desc-short", tr!("description이 짧아요 — 무엇을 하고 언제 쓰는지 적으면 에이전트가 더 잘 골라요", "description is short — saying what it does and when to use it helps agents pick it")));
     }
 
     let lines = p.body.lines().count();
     if p.body.trim().is_empty() {
-        out.push(warn("body-empty", "본문이 비어 있어요"));
+        out.push(warn("body-empty", tr!("본문이 비어 있어요", "The body is empty")));
     } else if lines > BODY_LINES_MAX {
         out.push(warn(
             "body-long",
-            format!("본문이 {lines}줄이에요 — {BODY_LINES_MAX}줄을 넘으면 별도 파일로 나누는 게 좋아요"),
+            tr!("본문이 {lines}줄이에요 — {BODY_LINES_MAX}줄을 넘으면 별도 파일로 나누는 게 좋아요", "The body is {lines} lines — past {BODY_LINES_MAX} lines, split it into separate files"),
         ));
     }
     out

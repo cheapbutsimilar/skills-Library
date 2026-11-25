@@ -5,7 +5,7 @@
   'use strict';
   const T = window.__TAURI__;
   if (!T || !T.core) {
-    if (!window.skillsLibMock) console.warn('Tauri도 mock-api도 없어요 — npm run preview로 여세요');
+    if (!window.skillsLibMock) console.warn('No Tauri and no mock API — open it with npm run preview');
     window.skillsLib = window.skillsLibMock;
     return;
   }

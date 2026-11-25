@@ -114,7 +114,7 @@ impl Library {
 
     fn check_slug(slug: &str) -> Result<(), String> {
         if slug.is_empty() || slug.starts_with('.') || !safe_rel(slug) || slug.contains('/') || slug.contains('\\') {
-            return Err("스킬 이름이 올바르지 않아요".into());
+            return Err(tr!("스킬 이름이 올바르지 않아요", "The skill name is not valid"));
         }
         Ok(())
     }
@@ -124,7 +124,7 @@ impl Library {
     }
 
     pub fn save_meta(&self, meta: &LibraryMeta) -> Result<(), String> {
-        atomic::write_json(&self.dir.join(META_FILE), meta).map_err(|e| format!("라이브러리 정보를 저장하지 못했어요 — {e}"))
+        atomic::write_json(&self.dir.join(META_FILE), meta).map_err(|e| tr!("라이브러리 정보를 저장하지 못했어요 — {e}", "Could not save library info — {e}"))
     }
 
     fn update_meta(&self, f: impl FnOnce(&mut LibraryMeta)) -> Result<(), String> {
@@ -180,7 +180,7 @@ impl Library {
         Self::check_slug(slug)?;
         let dir = self.path(slug);
         if !dir.is_dir() {
-            return Err("라이브러리에 그 스킬이 없어요".into());
+            return Err(tr!("라이브러리에 그 스킬이 없어요", "That skill is not in the library"));
         }
         let raw = fs::read_to_string(dir.join(SKILL_FILE)).unwrap_or_default();
         let (p, issues, _) = read_skill_dir(&dir);
@@ -225,15 +225,15 @@ impl Library {
     pub fn create(&self, name: &str, description: &str) -> Result<String, String> {
         let name = name.trim();
         if !skill::is_valid_name(name) {
-            return Err("이름은 영어 소문자·숫자·하이픈(-)으로 64자까지 쓸 수 있어요".into());
+            return Err(tr!("이름은 영어 소문자·숫자·하이픈(-)으로 64자까지 쓸 수 있어요", "Names use lowercase letters, digits and hyphens (-), up to 64 characters"));
         }
         if self.exists(name) {
-            return Err(format!("'{name}' 스킬이 이미 있어요"));
+            return Err(tr!("'{name}' 스킬이 이미 있어요", "A skill named '{name}' already exists"));
         }
         let dir = self.path(name);
-        fs::create_dir_all(&dir).map_err(|e| format!("폴더를 만들지 못했어요 — {e}"))?;
+        fs::create_dir_all(&dir).map_err(|e| tr!("폴더를 만들지 못했어요 — {e}", "Could not create the folder — {e}"))?;
         let raw = skill::compose(name, description.trim(), &skill::template_body(name));
-        fs::write(dir.join(SKILL_FILE), raw).map_err(|e| format!("SKILL.md를 쓰지 못했어요 — {e}"))?;
+        fs::write(dir.join(SKILL_FILE), raw).map_err(|e| tr!("SKILL.md를 쓰지 못했어요 — {e}", "Could not write SKILL.md — {e}"))?;
         let now = fsutil::now_ms();
         self.update_meta(|m| {
             m.skills.insert(name.into(), SkillMeta { created: now, ..Default::default() });
@@ -246,9 +246,9 @@ impl Library {
         Self::check_slug(slug)?;
         let dir = self.path(slug);
         if !dir.is_dir() {
-            return Err("라이브러리에 그 스킬이 없어요".into());
+            return Err(tr!("라이브러리에 그 스킬이 없어요", "That skill is not in the library"));
         }
-        atomic::write_atomic(&dir.join(SKILL_FILE), raw.as_bytes()).map_err(|e| format!("저장하지 못했어요 — {e}"))?;
+        atomic::write_atomic(&dir.join(SKILL_FILE), raw.as_bytes()).map_err(|e| tr!("저장하지 못했어요 — {e}", "Could not save — {e}"))?;
         let _ = fs::remove_file(atomic::backup_path(&dir.join(SKILL_FILE)));
         let p = skill::parse(raw);
         if p.name != slug && skill::is_valid_name(&p.name) && !self.exists(&p.name) {
@@ -261,7 +261,7 @@ impl Library {
     pub fn rename(&self, old: &str, new: &str) -> Result<(), String> {
         Self::check_slug(old)?;
         Self::check_slug(new)?;
-        fs::rename(self.path(old), self.path(new)).map_err(|e| format!("폴더 이름을 바꾸지 못했어요 — {e}"))?;
+        fs::rename(self.path(old), self.path(new)).map_err(|e| tr!("폴더 이름을 바꾸지 못했어요 — {e}", "Could not rename the folder — {e}"))?;
         self.update_meta(|m| {
             if let Some(v) = m.skills.remove(old) {
                 m.skills.insert(new.into(), v);
@@ -272,7 +272,7 @@ impl Library {
     pub fn duplicate(&self, slug: &str) -> Result<String, String> {
         Self::check_slug(slug)?;
         let new = self.unique_slug(&format!("{slug}-copy"));
-        fsutil::copy_tree(&self.path(slug), &self.path(&new)).map_err(|e| format!("복제하지 못했어요 — {e}"))?;
+        fsutil::copy_tree(&self.path(slug), &self.path(&new)).map_err(|e| tr!("복제하지 못했어요 — {e}", "Could not duplicate — {e}"))?;
         let raw = fs::read_to_string(self.path(&new).join(SKILL_FILE)).unwrap_or_default();
         let p = skill::parse(&raw);
         if let Ok(out) = skill::with_fields(&raw, &new, &p.description, None) {
@@ -290,7 +290,7 @@ impl Library {
     pub fn delete(&self, slug: &str, trash: &Path) -> Result<(), String> {
         Self::check_slug(slug)?;
         fsutil::move_to_trash(&self.path(slug), trash, &format!("library-{slug}"))
-            .map_err(|e| format!("지우지 못했어요 — {e}"))?;
+            .map_err(|e| tr!("지우지 못했어요 — {e}", "Could not delete — {e}"))?;
         self.update_meta(|m| {
             m.skills.remove(slug);
         })
@@ -300,7 +300,7 @@ impl Library {
     /// `preferred`가 주어지면(설치 위치에서 가져올 때) 그 이름을 먼저 써요.
     pub fn import_dir(&self, src: &Path, preferred: Option<&str>) -> Result<String, String> {
         if !has_skill_md(src) {
-            return Err("SKILL.md가 있는 폴더가 아니에요".into());
+            return Err(tr!("SKILL.md가 있는 폴더가 아니에요", "This folder has no SKILL.md"));
         }
         let (p, _, _) = read_skill_dir(src);
         let dir_name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -309,8 +309,8 @@ impl Library {
             .or_else(|| skill::is_valid_name(&p.name).then(|| p.name.clone()))
             .unwrap_or(dir_name);
         let slug = self.unique_slug(&base);
-        fs::create_dir_all(&self.dir).map_err(|e| format!("라이브러리 폴더를 만들지 못했어요 — {e}"))?;
-        fsutil::replace_dir(src, &self.path(&slug)).map_err(|e| format!("가져오지 못했어요 — {e}"))?;
+        fs::create_dir_all(&self.dir).map_err(|e| tr!("라이브러리 폴더를 만들지 못했어요 — {e}", "Could not create the library folder — {e}"))?;
+        fsutil::replace_dir(src, &self.path(&slug)).map_err(|e| tr!("가져오지 못했어요 — {e}", "Could not import — {e}"))?;
         // 예전 이름 규칙(skill.md)이면 SKILL.md로 맞춰요.
         let lower = self.path(&slug).join("skill.md");
         if lower.is_file() && !self.path(&slug).join(SKILL_FILE).is_file() {
@@ -329,20 +329,20 @@ impl Library {
         let dst = self.path(slug);
         if dst.is_dir() {
             let bak = trash.join(format!("{}-library-{slug}-before-pull", fsutil::now_ms()));
-            fsutil::copy_tree(&dst, &bak.join(slug)).map_err(|e| format!("백업하지 못했어요 — {e}"))?;
+            fsutil::copy_tree(&dst, &bak.join(slug)).map_err(|e| tr!("백업하지 못했어요 — {e}", "Could not back up — {e}"))?;
         }
-        fsutil::replace_dir(src, &dst).map_err(|e| format!("가져오지 못했어요 — {e}"))
+        fsutil::replace_dir(src, &dst).map_err(|e| tr!("가져오지 못했어요 — {e}", "Could not import — {e}"))
     }
 
     pub fn read_file(&self, slug: &str, rel: &str) -> Result<String, String> {
         Self::check_slug(slug)?;
         if !safe_rel(rel) {
-            return Err("파일 경로가 올바르지 않아요".into());
+            return Err(tr!("파일 경로가 올바르지 않아요", "The file path is not valid"));
         }
         let p = join_rel(&self.path(slug), rel);
-        let bytes = fs::read(&p).map_err(|e| format!("파일을 읽지 못했어요 — {e}"))?;
+        let bytes = fs::read(&p).map_err(|e| tr!("파일을 읽지 못했어요 — {e}", "Could not read the file — {e}"))?;
         if bytes.len() as u64 > TEXT_MAX || !looks_text(&bytes) {
-            return Err("텍스트 파일만 여기서 열 수 있어요".into());
+            return Err(tr!("텍스트 파일만 여기서 열 수 있어요", "Only text files can be opened here"));
         }
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
@@ -350,13 +350,13 @@ impl Library {
     pub fn write_file(&self, slug: &str, rel: &str, content: &str) -> Result<(), String> {
         Self::check_slug(slug)?;
         if !safe_rel(rel) || rel.split('/').any(|p| p.starts_with('.')) {
-            return Err("파일 경로가 올바르지 않아요 (점으로 시작하는 이름·'..'은 쓸 수 없어요)".into());
+            return Err(tr!("파일 경로가 올바르지 않아요 (점으로 시작하는 이름·'..'은 쓸 수 없어요)", "The file path is not valid (names starting with a dot and '..' are not allowed)"));
         }
         let p = join_rel(&self.path(slug), rel);
         if let Some(parent) = p.parent() {
-            fs::create_dir_all(parent).map_err(|e| format!("폴더를 만들지 못했어요 — {e}"))?;
+            fs::create_dir_all(parent).map_err(|e| tr!("폴더를 만들지 못했어요 — {e}", "Could not create the folder — {e}"))?;
         }
-        atomic::write_atomic(&p, content.as_bytes()).map_err(|e| format!("저장하지 못했어요 — {e}"))?;
+        atomic::write_atomic(&p, content.as_bytes()).map_err(|e| tr!("저장하지 못했어요 — {e}", "Could not save — {e}"))?;
         let _ = fs::remove_file(atomic::backup_path(&p));
         Ok(())
     }
@@ -364,13 +364,13 @@ impl Library {
     pub fn delete_file(&self, slug: &str, rel: &str, trash: &Path) -> Result<(), String> {
         Self::check_slug(slug)?;
         if !safe_rel(rel) {
-            return Err("파일 경로가 올바르지 않아요".into());
+            return Err(tr!("파일 경로가 올바르지 않아요", "The file path is not valid"));
         }
         if rel == SKILL_FILE {
-            return Err("SKILL.md는 지울 수 없어요".into());
+            return Err(tr!("SKILL.md는 지울 수 없어요", "SKILL.md cannot be deleted"));
         }
         let p = join_rel(&self.path(slug), rel);
-        fsutil::move_to_trash(&p, trash, &format!("file-{slug}")).map_err(|e| format!("지우지 못했어요 — {e}"))?;
+        fsutil::move_to_trash(&p, trash, &format!("file-{slug}")).map_err(|e| tr!("지우지 못했어요 — {e}", "Could not delete — {e}"))?;
         Ok(())
     }
 

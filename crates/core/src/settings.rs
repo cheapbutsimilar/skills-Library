@@ -8,7 +8,7 @@ use crate::targets::{builtin_targets, Agent, Target};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 pub const PRESETS: &[&str] = &["iris", "ember", "forest", "ocean", "ink", "sand"];
 pub const FONTS: &[&str] = &["pretendard", "segoe", "malgun", "noto", "system"];
 pub const ZOOMS: &[u32] = &[90, 100, 110, 125];
@@ -57,6 +57,8 @@ pub struct WinState {
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub v: u32,
+    /// system | en | ko
+    pub language: String,
     pub theme: Theme,
     /// 비어 있으면 기본 위치(앱 데이터 폴더/library)
     pub library_dir: String,
@@ -79,6 +81,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             v: VERSION,
+            language: "system".into(),
             theme: Theme::default(),
             library_dir: String::new(),
             targets: builtin_targets(),
@@ -123,6 +126,7 @@ pub fn valid_hotkey(s: &str) -> bool {
 impl Settings {
     pub fn sanitize(&mut self) {
         self.v = VERSION;
+        one_of(&mut self.language, crate::i18n::LANGS, "system");
         let t = &mut self.theme;
         one_of(&mut t.mode, &["system", "light", "dark"], "system");
         one_of(&mut t.preset, PRESETS, "iris");
@@ -175,7 +179,7 @@ impl Settings {
                 continue;
             }
             if t.name.is_empty() {
-                t.name = t.agent.label().into();
+                t.name = t.agent.label();
             }
             seen.insert(t.id.clone());
             out.push(t);
@@ -232,6 +236,7 @@ fn migrate(v: &mut Value) {
     }
     // v1 → v2: Gemini CLI·Grok Build 기본 대상이 생겼어요. sanitize가 빠진 기본 대상을 채우고,
     // 켤지는 앱이 `targets::detect_enabled`로 정해요 (설정 파일에 없던 대상만).
+    // v2 → v3: Antigravity·Cursor·Windsurf 기본 대상과 language(system)가 생겼어요. 위와 같은 방식이에요.
     if let Some(o) = v.as_object_mut() {
         o.insert("v".into(), Value::from(VERSION));
     }
@@ -298,7 +303,7 @@ mod tests {
         s.sanitize();
         assert_eq!(s, before);
         assert!(s.auto_sync);
-        assert_eq!(s.targets.len(), 5);
+        assert_eq!(s.targets.len(), 8);
     }
 
     #[test]
@@ -307,6 +312,7 @@ mod tests {
             "theme": {"mode": "neon", "preset": "nope", "accent": "red", "bg": "#abcdef", "zoom": 333},
             "hotkey": "",
             "sort": "random",
+            "language": "klingon",
             "window": {"x": 1, "y": 2, "w": 10, "h": 99999}
         }));
         assert_eq!(s.theme.mode, "system");
@@ -316,6 +322,7 @@ mod tests {
         assert_eq!(s.theme.zoom, 100);
         assert_eq!(s.hotkey, Settings::default().hotkey);
         assert_eq!(s.sort, "name");
+        assert_eq!(s.language, "system");
         let w = s.window.unwrap();
         assert_eq!((w.w, w.h), (900, 10000));
     }
@@ -325,7 +332,7 @@ mod tests {
         let s = from_value(json!({"autoSync": false, "targets": "garbage", "closeToTray": 5}));
         assert!(!s.auto_sync);
         assert!(s.close_to_tray);
-        assert_eq!(s.targets.len(), 5);
+        assert_eq!(s.targets.len(), 8);
     }
 
     #[test]
@@ -345,7 +352,7 @@ mod tests {
         dedup.sort();
         dedup.dedup();
         assert_eq!(ids.len(), dedup.len());
-        assert_eq!(s.targets.len(), 7);
+        assert_eq!(s.targets.len(), 10);
     }
 
     #[test]
@@ -361,8 +368,10 @@ mod tests {
         let s = from_value(json!({"v": 1, "targets": [
             {"id": "claude-code", "name": "Claude Code", "agent": "claude-code", "path": "~/.claude/skills", "enabled": true}
         ]}));
-        assert_eq!(s.v, 2);
+        assert_eq!(s.v, VERSION);
         assert!(s.target("gemini").is_some() && s.target("grok").is_some());
+        assert!(s.target("antigravity").is_some() && s.target("cursor").is_some() && s.target("windsurf").is_some());
+        assert_eq!(s.language, "system");
         assert_eq!(s.target("grok").unwrap().agent, Agent::Grok);
     }
 

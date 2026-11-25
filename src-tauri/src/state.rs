@@ -1,5 +1,6 @@
 //! AppState: 설정·설치 기록·스냅샷을 Mutex 하나로 들고 있어요. 저장은 모두 원자적으로 해요.
 
+use skillslib_core::tr;
 use crate::updater::UpdateInfo;
 use skillslib_core::library::Library;
 use skillslib_core::ops::Ctx;
@@ -63,6 +64,8 @@ impl AppState {
             .map(|a| a.iter().filter_map(|t| t.get("id").and_then(|i| i.as_str()).map(String::from)).collect())
             .unwrap_or_default();
         let mut s = stored.map(settings::from_value).unwrap_or_default();
+        // 화면이 뜨기 전(트레이 메뉴·알림)에 쓸 언어. 화면이 뜨면 set_lang으로 다시 맞춰요.
+        skillslib_core::i18n::set_lang(skillslib_core::i18n::guess(&s.language, sys_locale::get_locale().as_deref()));
         let mut added = false;
         for t in s.targets.iter_mut().filter(|t| t.builtin && !known.contains(&t.id)) {
             t.enabled = targets::detect_enabled(t, &env);
@@ -119,7 +122,7 @@ impl AppState {
 
     pub fn save_settings(&self) -> Result<(), String> {
         let s = self.settings();
-        atomic::write_json(&self.paths.settings, &s).map_err(|e| format!("설정을 저장하지 못했어요 — {e}"))
+        atomic::write_json(&self.paths.settings, &s).map_err(|e| tr!("설정을 저장하지 못했어요 — {e}", "Could not save settings — {e}"))
     }
 
     pub fn save_manifest_locked(&self, inner: &Inner) {

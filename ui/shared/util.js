@@ -19,18 +19,20 @@
     return (n / 1e6).toFixed(2).replace(/\.0+$/, '') + 'M';
   }
 
-  /** "방금", "3분 전", "2시간 13분 전", "3일 전" */
+  const t = (k, v) => (window.SL_I18N ? window.SL_I18N.t(k, v) : k);
+
+  /** "방금", "3분 전", "2시간 13분 전", "3일 전" (영어: "just now", "3m ago" …) */
   function ago(ms, now) {
     if (!ms) return '—';
     now = now || Date.now();
     const s = Math.max(0, Math.round((now - ms) / 1000));
-    if (s < 45) return '방금';
+    if (s < 45) return t('방금');
     const m = Math.round(s / 60);
-    if (m < 60) return `${m}분 전`;
+    if (m < 60) return t('{m}분 전', { m });
     const h = Math.floor(m / 60);
-    if (h < 24) return m % 60 && h < 6 ? `${h}시간 ${m % 60}분 전` : `${h}시간 전`;
+    if (h < 24) return m % 60 && h < 6 ? t('{h}시간 {m}분 전', { h, m: m % 60 }) : t('{h}시간 전', { h });
     const d = Math.floor(h / 24);
-    if (d < 30) return `${d}일 전`;
+    if (d < 30) return t('{d}일 전', { d });
     const dt = new Date(ms);
     return `${dt.getFullYear()}.${dt.getMonth() + 1}.${dt.getDate()}`;
   }
