@@ -9,13 +9,26 @@ Claude · Claude Code · Codex · Gemini CLI · Grok Build · Antigravity · Cur
 
 ## 내려받기
 
-**[⬇ 최신 버전 내려받기 (Windows 설치 파일)](https://github.com/cheapbutsimilar/skills-Library/releases/latest)**
+**[⬇ 최신 버전 내려받기](https://github.com/cheapbutsimilar/skills-Library/releases/latest)** — **Windows 10/11 (x64)**, **macOS 11 Big Sur 이상 (Apple Silicon·Intel)**을 지원해요.
 
-릴리스의 Assets에서 `…_x64-setup.exe` 파일을 받아 실행하세요. 한 번 설치하면 앱이 알아서 업데이트해요.
+| 플랫폼 | 파일 | 설치 |
+|---|---|---|
+| Windows | `…_x64-setup.exe` | 설치 파일을 실행해요 |
+| macOS | `…_universal.dmg` | 열어서 **Skills Library**를 **응용 프로그램** 폴더로 끌어다 놓아요 |
+
+한 번 설치하면 두 플랫폼 모두 앱이 알아서 업데이트해요. 설치 파일은 이 저장소의 공개
+[릴리스 워크플로](.github/workflows/release.yml)가 만들고, 자동 업데이트는 모두 앱의 업데이트 서명으로 검증해요.
 
 > **Windows SmartScreen 경고** — 설치 파일에 아직 유료 코드 서명 인증서가 없어서, 처음 실행할 때
-> *“Windows의 PC 보호”* 창이 뜰 수 있어요. **추가 정보 → 실행**을 누르면 돼요. 설치 파일은 이 저장소의 공개
-> [릴리스 워크플로](.github/workflows/release.yml)가 만들어 GitHub 릴리스에 올린 것이고, 자동 업데이트는 모두 앱의 업데이트 서명으로 검증해요.
+> *“Windows의 PC 보호”* 창이 뜰 수 있어요. **추가 정보 → 실행**을 누르면 돼요.
+
+> **macOS Gatekeeper (“확인되지 않은 개발자”)** — 아직 Apple 공증(notarization)을 받지 않아서 처음 실행이 막힐 수 있어요.
+> **응용 프로그램** 폴더에서 **Skills Library를 우클릭(또는 Control+클릭) → 열기**를 누르고, 뜨는 창에서 한 번 더 **열기**를 누르세요. 처음 한 번만 하면 돼요.
+> *“손상되었기 때문에 열 수 없습니다”*라고 나오면 터미널에서 내려받기 격리 표시를 지운 뒤 다시 여세요.
+>
+> ```bash
+> xattr -cr "/Applications/Skills Library.app"
+> ```
 
 ## 무엇을 하나요
 
@@ -36,7 +49,7 @@ Claude · Claude Code · Codex · Gemini CLI · Grok Build · Antigravity · Cur
 - **정리** — 이름이 같은데 내용이 다른 스킬은 남길 버전을 하나 골라 라이브러리와 설치된 곳 전부를 맞추고,
   예전 Codex 위치(`~/.codex/skills`)의 스킬은 현 위치(`~/.agents/skills`)로 옮겨요. 내용을 섞지 않고, 밀려난 버전은 휴지통에 백업해요.
 - **안전** — 지우거나 덮어쓰는 건 모두 휴지통 폴더로 옮겨요. 실수해도 되살릴 수 있어요.
-- **어디서든 검색** — <kbd>Ctrl+Alt+K</kbd>로 창을 열고 바로 검색해요. 트레이에 머물면서 새 스킬이 생기면 알려줘요.
+- **어디서든 검색** — <kbd>Ctrl+Alt+K</kbd>(macOS는 <kbd>⌥⌘K</kbd>)로 창을 열고 바로 검색해요. 트레이에 머물면서 새 스킬이 생기면 알려줘요.
 - **한국어·영어** — 운영체제 언어를 따라가고, **일반 › 언어**에서 바꿀 수 있어요.
 
 | 라이브러리 | 차이 비교 |
@@ -114,6 +127,10 @@ npm run build          # 로컬 설치 파일
 npm run build:win      # 리눅스에서 Windows 설치 파일 만들기 (mingw-w64, nsis 필요)
 ```
 
+```bash
+npm run build:mac      # Mac에서 유니버설 .app + .dmg 만들기 (rustup target add aarch64-apple-darwin x86_64-apple-darwin)
+```
+
 UI 작업은 Tauri 없이 브라우저 미리보기에서 해요. `scripts/mock-api.js`가 앱과 같은 모양의 가짜 브리지를 줘요.
 미리보기 주소 뒤에 `?lang=ko`, `?mode=light`, `?preset=forest`, `?empty=1`, `?welcome=1`, `?update=1`을 붙여 여러 상태를 볼 수 있어요.
 
@@ -134,7 +151,8 @@ ui/dashboard/       대시보드 (개요 · 라이브러리 · 스킬 · 설치 
 scripts/            mock-api.js, preview.js, demo-gif.js, check-ui.js, make-icons.py, make-logos.js
 ```
 
-설정은 `%APPDATA%\com.cheapbutsimilar.skillslibrary\settings.json`(Windows) 같은 앱 데이터 폴더에,
+설정은 앱 데이터 폴더(Windows `%APPDATA%\com.cheapbutsimilar.skillslibrary\settings.json`,
+macOS `~/Library/Application Support/com.cheapbutsimilar.skillslibrary/settings.json`)에,
 설치 기록은 같은 폴더의 `installs.json`에 원자적으로 저장해요. 라이브러리 기본 위치도 그 아래 `library`이고,
 **일반 › 라이브러리 폴더**에서 Git·클라우드 드라이브 폴더로 바꿀 수 있어요.
 

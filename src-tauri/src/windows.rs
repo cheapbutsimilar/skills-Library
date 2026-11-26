@@ -17,15 +17,24 @@ fn desktop_scale(app: &AppHandle) -> f64 {
 pub fn create(app: &AppHandle, visible: bool) -> tauri::Result<WebviewWindow> {
     let saved = app.state::<AppState>().settings().window;
     let (w, h) = saved.map(|s| (s.w as f64, s.h as f64)).unwrap_or((1060.0, 720.0));
-    let win = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("dashboard/index.html".into()))
+    let builder = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("dashboard/index.html".into()))
         .title("Skills Library")
         .inner_size(w, h)
         .min_inner_size(900.0, 600.0)
-        .decorations(false)
         .shadow(true)
         .resizable(true)
-        .visible(false)
-        .build()?;
+        .visible(false);
+    // Windows·Linux: 프레임 없는 창 + 직접 그린 타이틀바(최소화·최대화·닫기 버튼 포함).
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.decorations(false);
+    // macOS: 기본 신호등 버튼을 우리 타이틀바(42px) 위에 겹쳐 둬요. 화면은 body.mac에서 왼쪽을 비우고 자체 버튼을 숨겨요.
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .decorations(true)
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .traffic_light_position(tauri::LogicalPosition::new(16.0, 15.0));
+    let win = builder.build()?;
     match saved {
         Some(s) => {
             place(app, &win, s);

@@ -195,6 +195,7 @@
     "단축키": "Shortcut",
     "어디서든 검색 열기": "Open search from anywhere",
     "다른 앱을 쓰다가도 이 단축키로 라이브러리를 열고 검색칸에 바로 입력해요. 한 번 더 누르면 숨겨요.": "From any app, this shortcut opens the library with the search box focused. Press it again to hide.",
+    "⌘·⌥·⌃·⇧ 중 하나 이상과 글자·숫자·F키를 같이 눌러요.": "Combine ⌘, ⌥, ⌃ or ⇧ with a letter, digit or F-key.",
     "Ctrl·Alt·Shift 중 하나 이상과 글자·숫자·F키를 같이 눌러요.": "Combine Ctrl, Alt or Shift with a letter, digit or F-key.",
     "창 안 단축키": "In-window shortcuts",
     "저장 (편집 중)": "Save (while editing)",

@@ -316,7 +316,7 @@
   let n = 0;
   const handlers = {
     init: () => ({
-      settings: clone(settings), snapshot: snapshot(), version: '0.1.0', platform: 'windows', release: true,
+      settings: clone(settings), snapshot: snapshot(), version: '0.1.0', platform: qs.get('platform') || 'windows', release: true,
       update: qs.get('update') ? { version: '0.1.42', notes: '' } : null,
       dataDir: '/home/me/.local/share/com.cheapbutsimilar.skillslibrary',
       defaultLibrary: '/home/me/.local/share/com.cheapbutsimilar.skillslibrary/library', hotkeyError: null, firstRun: false,

@@ -9,14 +9,26 @@ Keep the originals in a library, install them wherever you need them, and every 
 
 ## Download
 
-**[⬇ Download the latest release (Windows installer)](https://github.com/cheapbutsimilar/skills-Library/releases/latest)**
+**[⬇ Download the latest release](https://github.com/cheapbutsimilar/skills-Library/releases/latest)** — supported on **Windows 10/11 (x64)** and **macOS 11 Big Sur or later (Apple Silicon and Intel)**.
 
-Download the `…_x64-setup.exe` file from the release assets and run it. Once installed, the app keeps itself up to date.
+| Platform | File | Install |
+|---|---|---|
+| Windows | `…_x64-setup.exe` | Run the installer |
+| macOS | `…_universal.dmg` | Open it and drag **Skills Library** into **Applications** |
+
+Once installed, the app keeps itself up to date on both platforms. Installers are built by the public
+[release workflow](.github/workflows/release.yml) and every auto-update is verified with the app's update signature.
 
 > **Windows SmartScreen warning** — the installer is not signed with a paid code-signing certificate yet, so Windows may show
-> *“Windows protected your PC”* the first time. Click **More info → Run anyway**. The download comes straight from this
-> repository's GitHub Releases, built by the public [release workflow](.github/workflows/release.yml), and every auto-update is
-> verified with the app's update signature.
+> *“Windows protected your PC”* the first time. Click **More info → Run anyway**.
+
+> **macOS Gatekeeper (“unidentified developer”)** — the app is not notarized by Apple yet, so the first launch may be blocked.
+> In **Applications**, **right-click (or Control-click) Skills Library → Open**, then click **Open** in the dialog. You only need to do this once.
+> If macOS says the app *“is damaged and can't be opened”*, clear the download quarantine flag in Terminal and open it again:
+>
+> ```bash
+> xattr -cr "/Applications/Skills Library.app"
+> ```
 
 ## Features
 
@@ -37,7 +49,7 @@ Download the `…_x64-setup.exe` file from the release assets and run it. Once i
 - **Clean up** — for skills with the same name but different content, pick one version to keep everywhere; skills in the
   legacy Codex location (`~/.codex/skills`) move to the current one (`~/.agents/skills`). Nothing is merged, replaced versions go to the trash.
 - **Safe by default** — anything deleted or overwritten is moved to a trash folder, so mistakes can be undone.
-- **Search anywhere** — <kbd>Ctrl+Alt+K</kbd> opens the window with the search box focused. The app lives in the tray and tells you about new skills.
+- **Search anywhere** — <kbd>Ctrl+Alt+K</kbd> (<kbd>⌥⌘K</kbd> on macOS) opens the window with the search box focused. The app lives in the tray and tells you about new skills.
 - **English and Korean** — follows your OS language, switchable under **General › Language**.
 
 | Library | Compare (diff) |
@@ -108,7 +120,11 @@ npm run demo           # docs/screenshots/demo.gif (25 fps, needs ffmpeg)
 ```
 
 ```bash
-npm run build          # local installer
+npm run build          # local installer for this OS
+```
+
+```bash
+npm run build:mac      # on a Mac: universal .app + .dmg (rustup target add aarch64-apple-darwin x86_64-apple-darwin)
 ```
 
 UI work happens in the browser preview without Tauri: `scripts/mock-api.js` provides a fake bridge with the same shape as the app.
@@ -131,7 +147,8 @@ ui/dashboard/       dashboard (Overview · Library · Skill · Locations · Them
 scripts/            mock-api.js, preview.js, demo-gif.js, check-ui.js, make-icons.py, make-logos.js
 ```
 
-Settings live in the app data folder (for example `%APPDATA%\com.cheapbutsimilar.skillslibrary\settings.json` on Windows)
+Settings live in the app data folder — `%APPDATA%\com.cheapbutsimilar.skillslibrary\settings.json` on Windows,
+`~/Library/Application Support/com.cheapbutsimilar.skillslibrary/settings.json` on macOS —
 and install records in `installs.json` next to it, both written atomically. The library defaults to `library` in the same folder
 and can be moved to a Git or cloud-drive folder under **General › Library folder**.
 

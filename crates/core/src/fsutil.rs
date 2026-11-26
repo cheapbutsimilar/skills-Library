@@ -11,6 +11,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// 스킬 내용으로 치지 않는 파일·폴더 이름.
 pub const IGNORED: &[&str] = &[
     ".DS_Store",
+    ".localized",
+    "Icon\r",
     "Thumbs.db",
     "desktop.ini",
     ".git",
@@ -23,7 +25,8 @@ pub const MAX_FILES: usize = 5000;
 const MAX_DEPTH: usize = 12;
 
 pub fn is_ignored(name: &str) -> bool {
-    IGNORED.contains(&name)
+    // `._이름`은 macOS가 exFAT·네트워크 드라이브에 남기는 리소스 포크(AppleDouble) 파일이에요.
+    IGNORED.contains(&name) || name.starts_with("._")
 }
 
 pub fn now_ms() -> u64 {
@@ -306,6 +309,8 @@ mod tests {
         t.write("a/SKILL.md", "hello");
         t.write("a/ref/x.md", "x");
         t.write("a/.DS_Store", "junk");
+        t.write("a/._SKILL.md", "apple double");
+        t.write("a/ref/._x.md", "apple double");
         t.write("b/SKILL.md", "hello");
         t.write("b/ref/x.md", "x");
         let ha = hash_dir(&t.path().join("a")).unwrap();

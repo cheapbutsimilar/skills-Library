@@ -44,10 +44,14 @@
     return f;
   }
 
-  /** 키 이벤트 → Tauri 단축키 문자열 ("CommandOrControl+Alt+K") */
-  function accelFromEvent(e) {
+  /** 키 이벤트 → Tauri 단축키 문자열 ("CommandOrControl+Alt+K").
+      macOS에서는 ⌘(Command)가 CommandOrControl이고, ⌃(Control)는 따로 "Control"로 적어요. */
+  function accelFromEvent(e, platform) {
     const mods = [];
-    if (e.ctrlKey || e.metaKey) mods.push('CommandOrControl');
+    if (platform === 'macos') {
+      if (e.metaKey) mods.push('CommandOrControl');
+      if (e.ctrlKey) mods.push('Control');
+    } else if (e.ctrlKey || e.metaKey) mods.push('CommandOrControl');
     if (e.altKey) mods.push('Alt');
     if (e.shiftKey) mods.push('Shift');
     let key = null;
@@ -60,12 +64,23 @@
     return [...mods, key].join('+');
   }
 
-  /** 보여줄 때는 짧게: "Ctrl+Alt+K" (macOS는 ⌘) */
+  const MAC_KEYS = { CommandOrControl: '⌘', CmdOrCtrl: '⌘', Command: '⌘', Cmd: '⌘', Super: '⌘', Control: '⌃', Ctrl: '⌃', Alt: '⌥', Option: '⌥', Shift: '⇧' };
+  const PC_KEYS = { CommandOrControl: 'Ctrl', CmdOrCtrl: 'Ctrl', Control: 'Ctrl', Command: 'Win', Cmd: 'Win', Super: 'Win', Option: 'Alt' };
+  const MAC_ORDER = ['⌃', '⌥', '⇧', '⌘'];
+
+  /** 보여줄 때는 짧게: "Ctrl+Alt+K", macOS는 기호를 붙여서 "⌥⌘K" (Apple 순서 ⌃⌥⇧⌘) */
   function accelLabel(a, platform) {
     if (!a) return '';
-    const mac = platform === 'macos';
-    return a.split('+').map(p => p === 'CommandOrControl' ? (mac ? '⌘' : 'Ctrl') : p === 'Alt' && mac ? '⌥' : p).join('+');
+    const parts = a.split('+');
+    if (platform !== 'macos') return parts.map(p => PC_KEYS[p] || p).join('+');
+    const mods = parts.slice(0, -1).map(p => MAC_KEYS[p] || p).sort((x, y) => MAC_ORDER.indexOf(x) - MAC_ORDER.indexOf(y));
+    return mods.join('') + parts[parts.length - 1];
   }
 
-  window.SL_UTIL = { esc, bytes, compact, ago, debounce, accelFromEvent, accelLabel };
+  /** 창 안 단축키 표시: Ctrl+S / ⌘S */
+  function modKey(key, platform) {
+    return platform === 'macos' ? '⌘' + key : 'Ctrl+' + key;
+  }
+
+  window.SL_UTIL = { esc, bytes, compact, ago, debounce, accelFromEvent, accelLabel, modKey };
 })();

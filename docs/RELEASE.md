@@ -1,7 +1,15 @@
 # 배포와 자동 업데이트
 
 `main`에 푸시할 때마다 `.github/workflows/release.yml`이 버전을 `0.1.<실행번호>`로 올리고,
-서명된 Windows 설치 파일(NSIS)·`.sig`·`latest.json`을 GitHub 릴리스에 올려요.
+릴리스 하나에 다음을 올려요.
+
+- Windows: NSIS 설치 파일(`…_x64-setup.exe`)과 `.sig`
+- macOS: 유니버설(Apple Silicon + Intel) `…_universal.dmg`, 자동 업데이트용 `.app.tar.gz`와 `.sig`
+- 두 플랫폼이 모두 들어간 `latest.json`
+
+순서는 prepare(초안 릴리스) → build(windows-latest, macos-latest를 하나씩) → publish(초안 해제)예요.
+빌드를 하나씩 도는 건 두 작업이 `latest.json`을 동시에 고쳐서 한 플랫폼이 빠지는 걸 막으려는 거예요.
+번들 형식은 `src-tauri/tauri.windows.conf.json`(nsis)과 `src-tauri/tauri.macos.conf.json`(app, dmg)에 있어요.
 앱은 시작 20초 뒤, 그다음 3시간마다 `latest.json`을 확인해요.
 
 ## 처음 한 번만
@@ -27,3 +35,6 @@
 - 자동 업데이트가 켜져 있으면 받아서 설치하고 다시 시작해요. 꺼져 있으면 타이틀바에 배지와
   "설치하고 다시 시작" 버튼을 보여줘요. 설치 직전에 설정과 설치 기록을 저장해요.
 - Authenticode 코드 서명 인증서가 없으면 처음 실행할 때 SmartScreen 경고가 떠요. 업데이트 서명과는 별개예요.
+- macOS 빌드는 ad-hoc 서명(`signingIdentity: "-"`)만 하고 공증(notarization)은 하지 않아요. 그래서 처음 실행할 때
+  Gatekeeper가 막을 수 있어요 — 우클릭 → 열기, 또는 `xattr -cr "/Applications/Skills Library.app"`.
+  Apple Developer ID가 생기면 `APPLE_CERTIFICATE`·`APPLE_ID` 같은 tauri-action 환경 변수를 더해 서명·공증할 수 있어요.

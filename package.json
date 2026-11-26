@@ -13,7 +13,8 @@
     "demo": "node scripts/demo-gif.js && LANG_UI=ko OUT=docs/screenshots/demo-ko.gif node scripts/demo-gif.js",
     "icons": "python3 scripts/make-icons.py && tauri icon scripts/icon-source.png -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios",
     "build": "tauri build",
-    "build:win": "tauri build --target x86_64-pc-windows-gnu --bundles nsis"
+    "build:win": "tauri build --target x86_64-pc-windows-gnu --bundles nsis",
+    "build:mac": "tauri build --target universal-apple-darwin"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

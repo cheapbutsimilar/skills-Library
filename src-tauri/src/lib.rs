@@ -137,9 +137,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("앱을 시작하지 못했어요");
 
-    app.run(|app, ev| {
-        if let RunEvent::ExitRequested { .. } = ev {
-            updater::on_before_exit(app);
-        }
+    app.run(|app, ev| match ev {
+        RunEvent::ExitRequested { .. } => updater::on_before_exit(app),
+        // macOS: 창을 닫아(숨겨) 둔 채 Dock 아이콘을 누르면 다시 열어요.
+        #[cfg(target_os = "macos")]
+        RunEvent::Reopen { has_visible_windows: false, .. } => windows::show(app),
+        _ => {}
     });
 }

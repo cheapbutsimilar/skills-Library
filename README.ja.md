@@ -9,14 +9,26 @@ Claude・Claude Code・Codex・Gemini CLI・Grok Build・Antigravity・Cursor・
 
 ## ダウンロード
 
-**[⬇ 最新版をダウンロード（Windows インストーラー）](https://github.com/cheapbutsimilar/skills-Library/releases/latest)**
+**[⬇ 最新版をダウンロード](https://github.com/cheapbutsimilar/skills-Library/releases/latest)** — **Windows 10/11（x64）** と **macOS 11 Big Sur 以降（Apple Silicon・Intel）** に対応しています。
 
-リリースの Assets から `…_x64-setup.exe` をダウンロードして実行してください。インストール後はアプリが自動で更新されます。
+| プラットフォーム | ファイル | インストール |
+|---|---|---|
+| Windows | `…_x64-setup.exe` | インストーラーを実行します |
+| macOS | `…_universal.dmg` | 開いて **Skills Library** を **アプリケーション** フォルダーへドラッグします |
+
+インストール後は、どちらのプラットフォームでもアプリが自動で更新されます。インストーラーはこのリポジトリの公開
+[リリースワークフロー](.github/workflows/release.yml) でビルドされ、自動更新はすべてアプリの更新署名で検証されます。
 
 > **Windows SmartScreen の警告について** — インストーラーにはまだ有償のコード署名証明書がないため、初回実行時に
 > 「Windows によって PC が保護されました」と表示されることがあります。**詳細情報 → 実行** をクリックしてください。
-> インストーラーはこのリポジトリの公開 [リリースワークフロー](.github/workflows/release.yml) でビルドされ、GitHub Releases から配布されます。
-> 自動更新はすべてアプリの更新署名で検証されます。
+
+> **macOS Gatekeeper（「開発元が未確認」）について** — まだ Apple の公証（notarization）を受けていないため、初回起動がブロックされることがあります。
+> **アプリケーション** フォルダーで **Skills Library を右クリック（または Control + クリック）→「開く」** を選び、ダイアログでもう一度 **「開く」** をクリックしてください。初回のみ必要です。
+> 「壊れているため開けません」と表示される場合は、ターミナルでダウンロードの隔離属性を削除してから開き直してください。
+>
+> ```bash
+> xattr -cr "/Applications/Skills Library.app"
+> ```
 
 ## 機能
 
@@ -36,7 +48,7 @@ Claude・Claude Code・Codex・Gemini CLI・Grok Build・Antigravity・Cursor・
 - **整理** — 同じ名前で内容が異なるスキルは残すバージョンを 1 つ選んで全体を揃え、旧 Codex の場所（`~/.codex/skills`）のスキルは
   現在の場所（`~/.agents/skills`）へ移動します。内容を混ぜることはなく、置き換えられた版はゴミ箱にバックアップされます。
 - **安全** — 削除・上書きしたものはすべてゴミ箱フォルダーへ移動するので、元に戻せます。
-- **どこからでも検索** — <kbd>Ctrl+Alt+K</kbd> でウィンドウを開いてすぐ検索。トレイに常駐し、新しいスキルを通知します。
+- **どこからでも検索** — <kbd>Ctrl+Alt+K</kbd>（macOS では <kbd>⌥⌘K</kbd>）でウィンドウを開いてすぐ検索。トレイに常駐し、新しいスキルを通知します。
 - **英語・韓国語 UI** — OS の言語に従い、**General › Language** で切り替えられます。
 
 | ライブラリ | 差分比較 |

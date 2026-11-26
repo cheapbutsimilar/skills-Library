@@ -9,13 +9,26 @@
 
 ## 下载
 
-**[⬇ 下载最新版本（Windows 安装程序）](https://github.com/cheapbutsimilar/skills-Library/releases/latest)**
+**[⬇ 下载最新版本](https://github.com/cheapbutsimilar/skills-Library/releases/latest)** — 支持 **Windows 10/11（x64）** 和 **macOS 11 Big Sur 及以上（Apple Silicon 与 Intel）**。
 
-在发布页的 Assets 中下载 `…_x64-setup.exe` 并运行。安装后应用会自动更新。
+| 平台 | 文件 | 安装方式 |
+|---|---|---|
+| Windows | `…_x64-setup.exe` | 运行安装程序 |
+| macOS | `…_universal.dmg` | 打开后将 **Skills Library** 拖到 **应用程序** 文件夹 |
+
+安装后，两个平台上的应用都会自动更新。安装程序由本仓库公开的 [发布工作流](.github/workflows/release.yml) 构建，
+所有自动更新都会用应用的更新签名进行校验。
 
 > **关于 Windows SmartScreen 警告** — 安装程序暂未使用付费代码签名证书，首次运行时 Windows 可能提示
-> “Windows 已保护你的电脑”。点击 **更多信息 → 仍要运行** 即可。安装程序由本仓库公开的
-> [发布工作流](.github/workflows/release.yml) 构建并发布到 GitHub Releases，所有自动更新都会用应用的更新签名进行校验。
+> “Windows 已保护你的电脑”。点击 **更多信息 → 仍要运行** 即可。
+
+> **关于 macOS Gatekeeper（“无法验证开发者”）** — 应用尚未经过 Apple 公证（notarization），首次打开可能会被拦截。
+> 在 **应用程序** 文件夹中 **右键（或按住 Control 点按）Skills Library → 打开**，然后在弹出的对话框中再次点击 **打开**。只需操作一次。
+> 如果提示应用 “已损坏，无法打开”，请在终端中清除下载隔离属性后重新打开：
+>
+> ```bash
+> xattr -cr "/Applications/Skills Library.app"
+> ```
 
 ## 功能
 
@@ -34,7 +47,7 @@
 - **整理** — 对同名但内容不同的技能，选择一个版本统一到所有位置；旧版 Codex 位置（`~/.codex/skills`）中的技能会迁移到当前位置（`~/.agents/skills`）。
   不会合并内容，被替换的版本会备份到回收站。
 - **安全** — 删除或覆盖的内容都会移到回收站文件夹，随时可以恢复。
-- **随处搜索** — 按 <kbd>Ctrl+Alt+K</kbd> 打开窗口并直接搜索。应用常驻托盘，发现新技能时会通知你。
+- **随处搜索** — 按 <kbd>Ctrl+Alt+K</kbd>（macOS 上为 <kbd>⌥⌘K</kbd>）打开窗口并直接搜索。应用常驻托盘，发现新技能时会通知你。
 - **英语与韩语界面** — 跟随系统语言，也可在 **General › Language** 中切换。
 
 | 资料库 | 差异比较 |

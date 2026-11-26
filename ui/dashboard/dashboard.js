@@ -5,7 +5,7 @@
   'use strict';
 
   const api = window.skillsLib;
-  const { esc, bytes, ago, debounce, accelFromEvent, accelLabel } = window.SL_UTIL;
+  const { esc, bytes, ago, debounce, accelFromEvent, accelLabel, modKey } = window.SL_UTIL;
   const { I, agentBadge } = window.SL_ICONS;
   const TH = window.SL_THEME;
   const L10N = window.SL_I18N;
@@ -90,6 +90,8 @@
   const call = (cmd, args) => api.call(cmd, args);
   const take = r => { if (r && r.snapshot) S.snap = r.snapshot; return r; };
   const openUrl = url => run(() => call('open_url', { url }));
+  const isMac = () => S.platform === 'macos';
+  const mk = key => esc(modKey(key, S.platform));
 
   // ───────────────────────── 언어 ─────────────────────────
   async function applyLang(tell) {
@@ -125,10 +127,10 @@
       ${state}${up}
       <button class="tb-btn" data-act="goto" data-arg="general" title="${t('설정')}">${I.gear}</button>
       <button class="tb-btn" data-act="refresh" title="${t('다시 검사')}">${I.refresh}</button>
-      <span class="tb-sep"></span>
-      <button class="tb-btn" data-act="winMin" title="${t('최소화')}">${I.min}</button>
-      <button class="tb-btn" data-act="winMax" title="${t('최대화')}">${I.max}</button>
-      <button class="tb-btn close" data-act="winClose" title="${t('닫기')}">${I.close}</button>
+      <span class="tb-sep win-ctl"></span>
+      <button class="tb-btn win-ctl" data-act="winMin" title="${t('최소화')}">${I.min}</button>
+      <button class="tb-btn win-ctl" data-act="winMax" title="${t('최대화')}">${I.max}</button>
+      <button class="tb-btn close win-ctl" data-act="winClose" title="${t('닫기')}">${I.close}</button>
     </header>`;
   }
 
@@ -150,7 +152,7 @@
         <div class="mini"><span>${t('자동 동기화')}</span>${sw(`data-set="autoSync" aria-label="${t('자동 동기화')}"`, S.settings.autoSync)}</div>
         <div class="hint">
           ${S.settings.hotkeyEnabled ? `<div><span>${t('어디서든 검색')}</span><kbd>${esc(accelLabel(S.settings.hotkey, S.platform))}</kbd></div>` : `<div><span>${t('검색')}</span><kbd>/</kbd></div>`}
-          <div><span>${t('새 스킬')}</span><kbd>Ctrl+N</kbd></div>
+          <div><span>${t('새 스킬')}</span><kbd>${mk('N')}</kbd></div>
         </div>
         <div class="side-links">
           <button class="side-link" data-act="openRepo" title="${t('GitHub 저장소')}" aria-label="${t('GitHub 저장소')}">${I.github}<span>GitHub</span></button>
@@ -397,7 +399,7 @@
           ${r.dirty ? `<span class="dirty-dot" title="${t('저장하지 않은 변경')}"></span>` : ''}
           ${btn('editRevert', t('되돌리기'), { cls: 'ghost', disabled: !r.dirty })}${btn('editSave', t('저장'), { cls: 'primary', disabled: !r.dirty, id: 'edit-save' })}</div>
         ${fields}
-        <div class="note">${r.mode === 'form' ? t('license·allowed-tools 같은 다른 머리말 항목은 그대로 둬요. 전부 고치려면 ‘원본’을 쓰세요.') : t('맨 위 --- 사이가 머리말(YAML)이에요.')} <kbd>Ctrl+S</kbd> ${t('저장')}</div>
+        <div class="note">${r.mode === 'form' ? t('license·allowed-tools 같은 다른 머리말 항목은 그대로 둬요. 전부 고치려면 ‘원본’을 쓰세요.') : t('맨 위 --- 사이가 머리말(YAML)이에요.')} <kbd>${mk('S')}</kbd> ${t('저장')}</div>
       </div></div>
       <div class="sticky"><div class="card"><h2>${t('검사')}</h2><div class="issues" id="live-issues">${issuesHtml(issues)}</div>
         <div class="spacer"></div><div class="note">${S.settings.autoSync ? t('저장하면 따로 고치지 않은 설치본에도 바로 반영돼요.') : t('자동 동기화가 꺼져 있어요. 저장한 뒤 설치 탭에서 업데이트하세요.')}</div></div></div>
@@ -533,13 +535,13 @@
       <h2>${t('단축키')}</h2>
       <div class="card"><div class="rows">
         ${row(t('어디서든 검색 열기'), t('다른 앱을 쓰다가도 이 단축키로 라이브러리를 열고 검색칸에 바로 입력해요. 한 번 더 누르면 숨겨요.'), sw('data-set="hotkeyEnabled"', s.hotkeyEnabled))}
-        ${row(t('단축키'), t('Ctrl·Alt·Shift 중 하나 이상과 글자·숫자·F키를 같이 눌러요.'), hk)}
+        ${row(t('단축키'), isMac() ? t('⌘·⌥·⌃·⇧ 중 하나 이상과 글자·숫자·F키를 같이 눌러요.') : t('Ctrl·Alt·Shift 중 하나 이상과 글자·숫자·F키를 같이 눌러요.'), hk)}
       </div>${S.hotkeyError ? `<div class="spacer"></div><div class="err">${I.alert}<span>${esc(S.hotkeyError)}</span></div>` : ''}</div>
       <h2>${t('창 안 단축키')}</h2>
       <div class="card"><div class="rows">
-        ${row(t('검색'), '', '<kbd>/</kbd> <kbd>Ctrl+F</kbd>')}
-        ${row(t('새 스킬'), '', '<kbd>Ctrl+N</kbd>')}
-        ${row(t('저장 (편집 중)'), '', '<kbd>Ctrl+S</kbd>')}
+        ${row(t('검색'), '', `<kbd>/</kbd> <kbd>${mk('F')}</kbd>`)}
+        ${row(t('새 스킬'), '', `<kbd>${mk('N')}</kbd>`)}
+        ${row(t('저장 (편집 중)'), '', `<kbd>${mk('S')}</kbd>`)}
         ${row(t('뒤로 · 닫기'), '', '<kbd>Esc</kbd>')}
       </div></div>
       <h2>${t('알림')}</h2>
@@ -1331,12 +1333,13 @@
     if (S.rec) {
       e.preventDefault(); e.stopPropagation();
       if (e.key === 'Escape') { recEnd(false); return; }
-      const accel = accelFromEvent(e);
+      const accel = accelFromEvent(e, S.platform);
       if (accel) recEnd(true, accel);
       return;
     }
     if (e.isComposing) return;
-    const mod = e.ctrlKey || e.metaKey;
+    // macOS는 ⌘, 그 밖은 Ctrl (⌘가 없는 키보드도 있어서 Windows·Linux에서는 둘 다 받아요)
+    const mod = isMac() ? e.metaKey : (e.ctrlKey || e.metaKey);
     const inField = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '');
     if (S.modal) {
       if (e.key === 'Escape') { e.preventDefault(); closeModal('cancel'); }
@@ -1392,6 +1395,8 @@
       update: d.update, dataDir: d.dataDir, defaultLibrary: d.defaultLibrary, hotkeyError: d.hotkeyError,
       firstImported: d.firstImported || 0,
     });
+    // macOS는 기본 신호등 버튼을 쓰고 자체 창 버튼을 숨겨요 (windows.rs의 Overlay 타이틀바).
+    document.body.classList.toggle('mac', S.platform === 'macos');
     TH.apply(S.settings.theme);
     TH.watch(() => S.settings.theme);
     S.lang = '';

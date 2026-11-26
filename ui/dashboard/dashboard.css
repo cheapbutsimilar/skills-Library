@@ -421,3 +421,7 @@ div.warn .ic, div.err .ic { margin-top: 2px; }
 .dl.del { background: var(--crit-soft); }
 .dl.del .sg { color: var(--crit); }
 .d-note { padding: 10px 12px; color: var(--text-3); font-family: var(--font); font-size: 12px; }
+
+/* macOS: 기본 신호등 버튼이 타이틀바 왼쪽 위에 겹쳐 있어요 (windows.rs). 자리를 비우고 자체 창 버튼은 숨겨요. */
+body.mac .titlebar { padding-left: 84px; padding-right: 10px; }
+body.mac .win-ctl { display: none; }

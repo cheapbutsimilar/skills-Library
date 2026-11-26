@@ -1,6 +1,11 @@
 name: Release
 
-# main에 푸시할 때마다 버전을 0.1.<실행번호>로 올려서 서명된 Windows 설치 파일과 latest.json을 릴리스에 올려요.
+# main에 푸시할 때마다 버전을 0.1.<실행번호>로 올려서, 서명된 설치 파일과 latest.json을 GitHub 릴리스 하나에 올려요.
+#   - Windows: NSIS 설치 파일(.exe)
+#   - macOS:   유니버설(Apple Silicon + Intel) .dmg, 자동 업데이트용 .app.tar.gz
+# 순서: prepare(초안 릴리스 만들기) → build(플랫폼별, 하나씩) → publish(초안 해제).
+# build를 하나씩 도는 건 두 작업이 latest.json을 동시에 고쳐 한쪽 플랫폼이 빠지는 걸 막으려는 거예요.
+#
 # 필요한 것 (docs/RELEASE.md 참고):
 #   Secrets   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD(키에 암호를 걸었다면)
 # 공개키는 src-tauri/tauri.conf.json에 들어 있어요. 키를 바꿀 때만 Variables TAURI_UPDATER_PUBKEY로 덮어써요.
@@ -13,18 +18,20 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: windows-latest
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.keys.outputs.ok }}
+      version: ${{ steps.keys.outputs.version }}
+      release_id: ${{ steps.release.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: 서명 키 확인
         id: keys
         shell: bash
         env:
           KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          PUB: ${{ vars.TAURI_UPDATER_PUBKEY }}
         run: |
+          echo "version=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           if [ -z "$KEY" ]; then
             echo "::warning::TAURI_SIGNING_PRIVATE_KEY가 없어서 릴리스를 건너뛰어요 (docs/RELEASE.md)"
             echo "ok=false" >> "$GITHUB_OUTPUT"
@@ -32,12 +39,62 @@ jobs:
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 버전·공개키 넣기
+      - name: 초안 릴리스 만들기
+        id: release
         if: steps.keys.outputs.ok == 'true'
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.keys.outputs.version }}
+        with:
+          result-encoding: string
+          script: |
+            const v = process.env.VERSION;
+            const body = [
+              'Download the installer for your system below. If Skills Library is already installed, it updates itself.',
+              '',
+              '- **Windows** — `…_x64-setup.exe`. SmartScreen may warn on first launch because the installer is not code-signed yet: click **More info → Run anyway**.',
+              '- **macOS** (Apple Silicon and Intel) — `…_universal.dmg`. Open it and drag Skills Library to Applications. The app is not notarized yet, so on first launch **right-click the app → Open → Open**, or run `xattr -cr "/Applications/Skills Library.app"` in Terminal.',
+              '',
+              '아래에서 내 컴퓨터에 맞는 설치 파일을 받으세요. 이미 설치했다면 앱이 알아서 업데이트해요.',
+              '',
+              '- **Windows** — `…_x64-setup.exe`. 코드 서명 인증서가 없어서 처음 실행할 때 SmartScreen 경고가 뜰 수 있어요: **추가 정보 → 실행**을 누르세요.',
+              '- **macOS** (Apple Silicon·Intel) — `…_universal.dmg`. 열어서 Skills Library를 응용 프로그램 폴더로 끌어다 놓으세요. 아직 공증(notarization)을 받지 않아서 처음에는 **앱을 우클릭 → 열기 → 열기**를 누르거나, 터미널에서 `xattr -cr "/Applications/Skills Library.app"`을 실행하세요.',
+            ].join('\n');
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${v}`,
+              target_commitish: context.sha,
+              name: `Skills Library v${v}`,
+              body,
+              draft: true,
+              prerelease: false,
+            });
+            return String(data.id);
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.ok == 'true'
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ''
+            targets: ''
+          - platform: macos-latest
+            args: '--target universal-apple-darwin'
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 버전·공개키 넣기
         shell: bash
         env:
           PUB: ${{ vars.TAURI_UPDATER_PUBKEY }}
-          VERSION: 0.1.${{ github.run_number }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           node -e '
             const fs = require("fs");
@@ -47,21 +104,19 @@ jobs:
             if (process.env.PUB) c.plugins.updater.pubkey = process.env.PUB;
             fs.writeFileSync(p, JSON.stringify(c, null, 2));
           '
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
-        if: steps.keys.outputs.ok == 'true'
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
-        if: steps.keys.outputs.ok == 'true'
+        with:
+          targets: ${{ matrix.targets }}
       - uses: Swatinem/rust-cache@v2
-        if: steps.keys.outputs.ok == 'true'
+        with:
+          key: ${{ matrix.platform }}
       - run: npm ci || npm install
-        if: steps.keys.outputs.ok == 'true'
 
       - uses: tauri-apps/tauri-action@v0
-        if: steps.keys.outputs.ok == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -69,15 +124,23 @@ jobs:
           SKILLSLIB_RELEASE: "1"
         with:
           projectPath: .
-          args: --config src-tauri/tauri.release.conf.json
-          tagName: v__VERSION__
-          releaseName: Skills Library v__VERSION__
-          releaseBody: |
-            Download the `…_x64-setup.exe` below and run it. If Skills Library is already installed, it updates itself.
-            Windows SmartScreen may warn on first launch because the installer is not code-signed yet — click **More info → Run anyway**.
-
-            아래 `…_x64-setup.exe`를 받아 실행하세요. 이미 설치했다면 앱이 알아서 업데이트해요.
-            설치 파일에 코드 서명 인증서가 없어서 처음 실행할 때 SmartScreen 경고가 뜰 수 있어요 — **추가 정보 → 실행**을 누르세요.
-          releaseDraft: false
-          prerelease: false
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          args: --config src-tauri/tauri.release.conf.json ${{ matrix.args }}
           includeUpdaterJson: true
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 초안 해제
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: Number(process.env.RELEASE_ID),
+              draft: false,
+            });
