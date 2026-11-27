@@ -42,6 +42,9 @@ Claude · Claude Code · Codex · Gemini CLI · Grok Build · Antigravity · Cur
 - **GitHub에서 가져오기** — 저장소나 하위 폴더 주소(`https://github.com/owner/repo`, `…/tree/branch/path`)를 붙여 넣으면
   `SKILL.md`가 있는 폴더를 내려받아 검사한 뒤 라이브러리에 바로 넣어요. 폴더·ZIP·`.skill` 파일도 가져올 수 있고, 창에 끌어다 놓아도 돼요.
   처음 켜면 이미 설치된 스킬을 라이브러리로 복사해 와요(원본은 그대로).
+- **공유 코드로 주고받기** — 스킬 일부나 라이브러리 전체를 골라 **공유**를 누르면 `AB3K9MZ` 같은 7자리 코드와 링크가 나와요.
+  다른 컴퓨터에서는 **가져오기**에 코드나 링크를 붙여 넣기만 하면 같은 스킬이 그 라이브러리에 들어와요.
+  검사·중복 처리는 ZIP 가져오기와 똑같고, 묶음은 2MB까지·30일 뒤 자동 만료예요.
 - **편집** — 양식(name·description·본문) 또는 SKILL.md 원본으로 고치고, 스크립트·참고 문서 같은 다른 파일도 편집해요.
   저장하기 전에 규칙(이름 64자·소문자·하이픈, 설명 1024자, XML 태그 금지 …)을 실시간으로 검사해요.
 - **Claude 앱** — claude.ai·Claude 데스크톱은 스킬 폴더가 없어서 ZIP으로 올려요. 버튼 한 번으로 ZIP을 만들고,
@@ -55,8 +58,8 @@ Claude · Claude Code · Codex · Gemini CLI · Grok Build · Antigravity · Cur
 | 라이브러리 | 차이 비교 |
 |---|---|
 | ![라이브러리](docs/screenshots/ko/library.png) | ![차이 비교](docs/screenshots/ko/diff.png) |
-| **모든 에이전트에 설치** | **GitHub에서 가져오기** |
-| ![설치](docs/screenshots/ko/skill-install.png) | ![GitHub에서 가져오기](docs/screenshots/ko/github-import.png) |
+| **모든 에이전트에 설치** | **링크·코드로 가져오기** |
+| ![설치](docs/screenshots/ko/skill-install.png) | ![가져오기](docs/screenshots/ko/github-import.png) |
 | **스킬 편집** | **테마** |
 | ![편집](docs/screenshots/ko/skill-edit.png) | ![테마](docs/screenshots/ko/look.png) |
 

@@ -41,6 +41,9 @@
   并在同一界面选择导入或覆盖。
 - **从 GitHub 导入** — 粘贴仓库或子文件夹地址（`https://github.com/owner/repo` 或 `…/tree/branch/path`），
   应用会下载其中包含 `SKILL.md` 的文件夹、进行校验并直接加入资料库。也支持文件夹、ZIP、`.skill` 文件和拖放。
+- **用代码共享** — 选择部分技能或整个资料库并点击 **共享**，会得到一个像 `AB3K9MZ` 的 7 位代码和一个链接。
+  在另一台电脑上把它粘贴到 **导入** 中，同样的技能就会加入那个资料库；校验与重复处理与 ZIP 导入相同。
+  共享包最大 2 MB，30 天后自动过期。
 - **编辑** — 可用表单（name・description・正文）或 `SKILL.md` 原文编辑，也能编辑脚本和参考文档。
   输入时实时检查规则（64 字符的小写连字符名称、1024 字符描述、禁止 XML 标签等）。
 - **Claude 应用** — claude.ai 与 Claude 桌面端没有技能文件夹，需要上传 ZIP。一键生成 ZIP，资料库变化后会提醒你重新上传。
@@ -53,8 +56,10 @@
 | 资料库 | 差异比较 |
 |---|---|
 | ![资料库](docs/screenshots/library.png) | ![差异](docs/screenshots/diff.png) |
-| **安装到所有智能体** | **从 GitHub 导入** |
-| ![安装](docs/screenshots/skill-install.png) | ![GitHub](docs/screenshots/github-import.png) |
+| **安装到所有智能体** | **从链接或代码导入** |
+| ![安装](docs/screenshots/skill-install.png) | ![导入](docs/screenshots/github-import.png) |
+| **编辑技能** | **主题** |
+| ![编辑](docs/screenshots/skill-edit.png) | ![主题](docs/screenshots/look.png) |
 
 ## 安装位置
 

@@ -11,6 +11,7 @@
 //! - [`settings`] — 설정 스키마·검증·마이그레이션
 //! - [`zipio`] — Claude 앱용 ZIP 내보내기·가져오기
 //! - [`github`] — GitHub 저장소·폴더 URL에서 스킬 가져오기
+//! - [`share`] — 공유 코드·링크로 라이브러리 주고받기 (ZIP 묶기·코드 읽기)
 //! - [`diff`] — 라이브러리 원본과 설치본 비교
 //! - [`i18n`] — 영어·한국어 메시지
 
@@ -24,6 +25,7 @@ pub mod fsutil;
 pub mod library;
 pub mod ops;
 pub mod settings;
+pub mod share;
 pub mod skill;
 pub mod snapshot;
 pub mod sync;

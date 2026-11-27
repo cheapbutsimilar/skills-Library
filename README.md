@@ -42,6 +42,9 @@ Once installed, the app keeps itself up to date on both platforms. Installers ar
 - **Import from GitHub** — paste a repository or folder URL (`https://github.com/owner/repo` or `…/tree/branch/path`).
   Every folder with a `SKILL.md` is downloaded, validated and added to the library. Folders, ZIP and `.skill` files work too —
   even by drag and drop. On first launch, skills that are already installed are copied into the library (originals untouched).
+- **Share with a code** — pick some skills or the whole library and press **Share**: you get a 7-character code like `AB3K9MZ`
+  and a link. On another computer, paste either one into **Import** and the same skills land in that library — validation and
+  duplicate handling work exactly like a ZIP import. Bundles hold up to 2 MB and expire after 30 days.
 - **Edit** — edit with a form (name · description · body) or the raw `SKILL.md`, plus bundled scripts and reference files.
   Rules (64-char lowercase-hyphen names, 1024-char descriptions, no XML tags …) are checked live as you type.
 - **Claude app** — claude.ai and Claude desktop have no skills folder, so you upload a ZIP. One click builds it, and the app
@@ -55,8 +58,8 @@ Once installed, the app keeps itself up to date on both platforms. Installers ar
 | Library | Compare (diff) |
 |---|---|
 | ![Library](docs/screenshots/library.png) | ![Diff](docs/screenshots/diff.png) |
-| **Install to every agent** | **Import from GitHub** |
-| ![Install](docs/screenshots/skill-install.png) | ![GitHub import](docs/screenshots/github-import.png) |
+| **Install to every agent** | **Import from a link or code** |
+| ![Install](docs/screenshots/skill-install.png) | ![Import](docs/screenshots/github-import.png) |
 | **Edit a skill** | **Locations** |
 | ![Edit](docs/screenshots/skill-edit.png) | ![Locations](docs/screenshots/targets.png) |
 

@@ -5,6 +5,7 @@ mod commands;
 mod github;
 mod hotkeys;
 mod menu;
+mod share;
 mod state;
 mod tray_icon;
 mod updater;
@@ -113,6 +114,8 @@ pub fn run() {
             commands::import_pick,
             commands::import_paths,
             commands::import_github,
+            commands::share_upload,
+            commands::import_share,
             commands::diff,
             commands::install_all,
             commands::set_lang,

@@ -41,6 +41,9 @@ Claude・Claude Code・Codex・Gemini CLI・Grok Build・Antigravity・Cursor・
   ファイル・行単位で確認して、同じ画面から取り込み／上書きを選べます。
 - **GitHub から取り込み** — リポジトリやフォルダーの URL（`https://github.com/owner/repo`、`…/tree/branch/path`）を貼り付けると、
   `SKILL.md` を含むフォルダーをダウンロードして検証し、ライブラリに追加します。フォルダー・ZIP・`.skill` ファイル、ドラッグ＆ドロップにも対応。
+- **コードで共有** — スキルの一部またはライブラリ全体を選んで **共有** を押すと、`AB3K9MZ` のような 7 文字のコードとリンクが発行されます。
+  別のパソコンでは **取り込み** にコードかリンクを貼り付けるだけで、同じスキルがそのライブラリに入ります。検証と重複処理は ZIP 取り込みと同じです。
+  バンドルは 2 MB まで、30 日後に自動で期限切れになります。
 - **編集** — フォーム（name・description・本文）または `SKILL.md` の原文で編集でき、スクリプトや参考資料も編集できます。
   ルール（64 文字の小文字・ハイフン名、1024 文字の説明、XML タグ禁止など）は入力中にリアルタイムで検査されます。
 - **Claude アプリ** — claude.ai と Claude デスクトップにはスキルフォルダーがないため ZIP でアップロードします。ワンクリックで ZIP を作成し、
@@ -54,8 +57,10 @@ Claude・Claude Code・Codex・Gemini CLI・Grok Build・Antigravity・Cursor・
 | ライブラリ | 差分比較 |
 |---|---|
 | ![ライブラリ](docs/screenshots/library.png) | ![差分](docs/screenshots/diff.png) |
-| **全エージェントにインストール** | **GitHub から取り込み** |
-| ![インストール](docs/screenshots/skill-install.png) | ![GitHub](docs/screenshots/github-import.png) |
+| **全エージェントにインストール** | **リンク・コードから取り込み** |
+| ![インストール](docs/screenshots/skill-install.png) | ![取り込み](docs/screenshots/github-import.png) |
+| **スキルの編集** | **テーマ** |
+| ![編集](docs/screenshots/skill-edit.png) | ![テーマ](docs/screenshots/look.png) |
 
 ## インストール先
 

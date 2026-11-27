@@ -340,6 +340,68 @@ pub async fn import_github(app: AppHandle, url: String) -> Res<ImportResult> {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ShareResult {
+    code: String,
+    url: String,
+    expires_in_days: u32,
+    bytes: u64,
+    count: usize,
+}
+
+/// 고른 스킬(목록이 비어 있으면 라이브러리 전체)을 ZIP 하나로 묶어 공유 코드·링크를 만들어요.
+/// 코드는 30일 뒤에 자동으로 만료돼요.
+#[tauri::command]
+pub async fn share_upload(st: State<'_, AppState>, slugs: Vec<String>) -> Res<ShareResult> {
+    let lib = st.library();
+    let picked = if slugs.is_empty() { lib.slugs() } else { slugs };
+    if picked.is_empty() {
+        return Err(tr!(
+            "공유할 스킬이 없어요 — 먼저 라이브러리에 스킬을 넣어 주세요",
+            "There is nothing to share — add skills to the library first"
+        ));
+    }
+    let mut pairs = Vec::with_capacity(picked.len());
+    for slug in picked {
+        if !fsutil::safe_rel(&slug) || slug.contains(['/', '\\']) {
+            return Err(tr!("스킬 이름이 올바르지 않아요", "The skill name is not valid"));
+        }
+        if !lib.exists(&slug) {
+            return Err(tr!("라이브러리에 {slug}가 없어요", "There is no {slug} in the library"));
+        }
+        pairs.push((slug.clone(), lib.path(&slug)));
+    }
+    std::fs::create_dir_all(&st.paths.tmp).map_err(|e| e.to_string())?;
+    let zip = st.paths.tmp.join(format!("share-{}.zip", fsutil::now_ms()));
+    let bundle = skillslib_core::share::pack(&pairs, &zip)?;
+    let data = std::fs::read(&zip).map_err(|e| tr!("ZIP을 읽지 못했어요 — {e}", "Could not read the ZIP — {e}"))?;
+    let _ = std::fs::remove_file(&zip);
+    let p = crate::share::upload(data).await?;
+    Ok(ShareResult { code: p.code, url: p.url, expires_in_days: p.expires_in_days, bytes: bundle.bytes, count: bundle.count })
+}
+
+/// 공유 코드·링크로 받은 묶음을 풀어 라이브러리에 넣어요 (ZIP 가져오기와 같은 검사·중복 확인).
+#[tauri::command]
+pub async fn import_share(app: AppHandle, input: String) -> Res<ImportResult> {
+    let code = skillslib_core::share::parse_code(&input)?;
+    let data = crate::share::download(&code).await?;
+    let st = app.state::<AppState>();
+    let dir = st.paths.tmp.join(format!("share-{}", fsutil::now_ms()));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let zip = dir.join(format!("skills-{code}.zip"));
+    std::fs::write(&zip, &data).map_err(|e| tr!("받은 파일을 저장하지 못했어요 — {e}", "Could not save the download — {e}"))?;
+    let r = import_paths_inner(&app, &[zip]);
+    let _ = std::fs::remove_dir_all(&dir);
+    if r.slugs.is_empty() && r.errors.is_empty() {
+        return Err(tr!(
+            "{code} 묶음에서 가져올 스킬을 찾지 못했어요",
+            "No importable skill was found in bundle {code}"
+        ));
+    }
+    Ok(r)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffResult {
     slug: String,
     target: String,

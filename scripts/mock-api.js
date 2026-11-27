@@ -490,6 +490,20 @@
       return { slugs: [slug], errors: [], snapshot: changed() };
     },
     import_paths: () => handlers.import_pick(),
+    share_upload: ({ slugs }) => new Promise(resolve => setTimeout(() => {
+      const picked = (slugs && slugs.length ? slugs : Object.keys(lib));
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 7; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      resolve({ code, url: `https://skills-library-share.sakugarchive.workers.dev/bundles/${code}`, expiresInDays: 30, bytes: 3600 * picked.length, count: picked.length });
+    }, 700)),
+    import_share: ({ input }) => new Promise((resolve, reject) => setTimeout(() => {
+      const v = (input || '').trim();
+      if (!/^[A-Za-z0-9]{7}$/.test(v) && !/skills-library-share/i.test(v)) return reject(L('공유 코드가 아니에요 — 7자리 코드나 공유 링크를 붙여 넣어 주세요', 'That is not a share code — paste a 7-character code or a share link'));
+      const slug = 'shared-skill' + (n++ ? '-' + n : '');
+      lib[slug] = { tags: ['shared'], favorite: false, updated: Date.now(), files: { 'SKILL.md': md(slug, L('공유 코드로 받은 스킬이에요. 미리보기에서는 가짜 내용이 들어와요.', 'A skill received by share code. The preview fills in placeholder content.'), `# ${slug}\n`) } };
+      resolve({ slugs: [slug], errors: [], snapshot: changed() });
+    }, 700)),
     export_zip: ({ slug }) => { man['claude-app'][slug] = hash(need(slug).files); changed(); return `/home/me/Downloads/${slug}.zip`; },
     target_add_project: ({ agent }) => {
       const sub = { 'claude-code': '.claude/skills', codex: '.agents/skills', gemini: '.gemini/skills', grok: '.grok/skills', antigravity: '.agent/skills', cursor: '.cursor/skills', windsurf: '.windsurf/skills' };

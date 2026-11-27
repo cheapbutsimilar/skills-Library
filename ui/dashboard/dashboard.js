@@ -25,7 +25,7 @@
     draft: null, issues: null, file: null,
     q: '', tag: null, filter: 'all',
     creating: null, rec: false, modal: null, tagInput: '',
-    diff: null, lastKey: '', lang: 'ko',
+    diff: null, share: null, lastKey: '', lang: 'ko',
   };
 
   // ───────────────────────── 공통 조각 ─────────────────────────
@@ -302,20 +302,20 @@
   }
 
   const importButtons = () =>
-    btn('importFolder', t('폴더에서'), { icon: 'folder' }) + btn('importZip', t('ZIP에서'), { icon: 'zip' }) + btn('importGithub', t('GitHub에서'), { icon: 'github' });
+    btn('importFolder', t('폴더에서'), { icon: 'folder' }) + btn('importZip', t('ZIP에서'), { icon: 'zip' }) + btn('importLink', t('링크·코드에서'), { icon: 'link' });
 
   function pageLibrary() {
     const list = filtered();
     const tags = [...new Set(S.snap.skills.flatMap(s => s.tags))].sort();
     const total = S.snap.skills.length;
     const body = !total
-      ? `<div class="card"><div class="empty"><b>${t('아직 스킬이 없어요')}</b>${t('새로 만들거나, 폴더·ZIP·GitHub에서 가져오거나, 설치 위치에 있는 스킬을 가져와 보세요.')}<br/>${t('스킬 폴더나 ZIP을 이 창에 끌어다 놓아도 돼요.')}
+      ? `<div class="card"><div class="empty"><b>${t('아직 스킬이 없어요')}</b>${t('새로 만들거나, 폴더·ZIP·링크에서 가져오거나, 설치 위치에 있는 스킬을 가져와 보세요.')}<br/>${t('스킬 폴더나 ZIP을 이 창에 끌어다 놓아도 돼요.')}
           <div class="btns">${btn('createOpen', t('새 스킬'), { cls: 'primary', icon: 'plus' })}${importButtons()}</div></div></div>`
       : list.length ? `<div class="grid-cards">${list.map(skillCard).join('')}</div>`
         : `<div class="card"><div class="empty"><b>${t('찾는 스킬이 없어요')}</b>${t('검색어나 필터를 바꿔 보세요.')}</div></div>`;
     return `<div class="page">
       <div class="page-head"><div class="t"><h1>${t('라이브러리')}</h1><p>${t('스킬 원본을 모아 두는 곳이에요. 여기서 고치고, 필요한 곳에 설치해요.')}</p></div>
-        <div class="actions">${importButtons()}${btn('createOpen', t('새 스킬'), { cls: 'primary', icon: 'plus' })}</div></div>
+        <div class="actions">${importButtons()}${total ? btn('shareOpen', t('공유'), { icon: 'share' }) : ''}${btn('createOpen', t('새 스킬'), { cls: 'primary', icon: 'plus' })}</div></div>
       ${S.creating ? createCard() : ''}
       ${total ? `<div class="toolbar">
         <div class="search">${I.search}<input class="inp" id="q" data-model="q" value="${esc(S.q)}" placeholder="${t('이름·설명·태그 검색')}" autocomplete="off" spellcheck="false"/></div>
@@ -434,7 +434,7 @@
     return `<div class="page">
       <button class="back" data-act="goto" data-arg="library">${I.back}${t('라이브러리')}</button>
       <div class="page-head"><div class="t"><h1 class="mono">${esc(s.slug)}</h1><p>${esc(s.description || t('설명이 없어요'))}</p></div>
-        <div class="actions">${btn('openSkillDir', '', { cls: 'icon', icon: 'folder', arg: s.slug, title: t('폴더 열기') })}${btn('duplicate', '', { cls: 'icon', icon: 'copy', arg: s.slug, title: t('복제') })}${btn('deleteSkill', '', { cls: 'icon danger', icon: 'trash', arg: s.slug, title: t('라이브러리에서 지우기') })}${btn('exportZip', t('ZIP 내보내기'), { icon: 'zip', arg: s.slug })}</div></div>
+        <div class="actions">${btn('shareSkill', '', { cls: 'icon', icon: 'share', arg: s.slug, title: t('이 스킬 공유') })}${btn('openSkillDir', '', { cls: 'icon', icon: 'folder', arg: s.slug, title: t('폴더 열기') })}${btn('duplicate', '', { cls: 'icon', icon: 'copy', arg: s.slug, title: t('복제') })}${btn('deleteSkill', '', { cls: 'icon danger', icon: 'trash', arg: s.slug, title: t('라이브러리에서 지우기') })}${btn('exportZip', t('ZIP 내보내기'), { icon: 'zip', arg: s.slug })}</div></div>
       <div class="toolbar">${seg('tab', [['install', t('설치')], ['edit', t('편집') + (S.draft && S.draft.dirty ? ' •' : '')], ['files', t('파일 {n}', { n: s.files })]], S.tab)}</div>
       ${tab}
     </div>`;
@@ -795,7 +795,7 @@
     renderModal();
     m.resolve(result);
   }
-  function renderModal() { $modal.innerHTML = S.modal ? modalHtml() : S.diff ? diffHtml() : ''; }
+  function renderModal() { $modal.innerHTML = S.modal ? modalHtml() : S.diff ? diffHtml() : S.share ? shareHtml() : ''; }
 
   // ───────────────────────── 그리기 ─────────────────────────
   function page() {
@@ -965,27 +965,127 @@
     return r;
   }
 
-  async function importGithub(preset) {
+  // ───────────────────────── 공유 (7자리 코드로 주고받기) ─────────────────────────
+  const SHARE_CODE_RE = /^[A-Za-z0-9]{7}$/;
+  /** 붙여 넣은 글자가 공유 코드(7자리)나 공유 링크인지 — 아니면 GitHub 주소로 봐요. */
+  const isShareRef = v => SHARE_CODE_RE.test(v.trim()) || /skills-library-share/i.test(v);
+
+  function openShare(slugs) {
+    const all = S.snap.skills.map(s => s.slug);
+    if (!all.length) { toast(t('공유할 스킬이 없어요 — 먼저 라이브러리에 스킬을 넣어 주세요'), true); return; }
+    const picked = (slugs && slugs.length ? slugs.filter(s => all.includes(s)) : all);
+    S.share = { picked: picked.length ? picked.slice() : all.slice(), busy: false, result: null };
+    renderModal();
+  }
+
+  function closeShare() {
+    if (S.share && S.share.busy) return;
+    S.share = null;
+    renderModal();
+  }
+
+  async function shareNow() {
+    const v = S.share;
+    if (!v || v.busy) return;
+    if (!v.picked.length) { toast(t('공유할 스킬을 골라 주세요'), true); return; }
+    v.busy = true;
+    renderModal();
+    const r = await run(() => call('share_upload', { slugs: v.picked.slice() }));
+    if (!r) { v.busy = false; renderModal(); return; }
+    S.share = { picked: v.picked, busy: false, result: r };
+    renderModal();
+  }
+
+  function shareHtml() {
+    const v = S.share;
+    const r = v.result;
+    const open = label => `<div class="modal-back" data-act="shareBack"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(label)}">`;
+    if (r) {
+      return `${open(t('공유 코드'))}
+        <h3>${t('공유 코드를 만들었어요')}</h3>
+        <p>${t('다른 컴퓨터에서 Skills Library를 열고 가져오기에서 아래 코드나 링크를 붙여 넣으면 스킬이 들어와요.')}</p>
+        <div class="share">
+          <div class="share-code mono">${esc(r.code)}</div>
+          <div class="share-btns">${btn('copyCode', t('코드 복사'), { cls: 'sm', icon: 'copy' })}${btn('copyLink', t('링크 복사'), { cls: 'sm', icon: 'link' })}</div>
+          <div class="path share-url" title="${esc(r.url)}">${esc(r.url)}</div>
+          <div class="note">${t('스킬 {n}개 · {size}', { n: r.count, size: bytes(r.bytes) })} · ${t('{days}일 뒤에 자동으로 만료돼요', { days: r.expiresInDays })}</div>
+        </div>
+        <div class="btns"><span class="gap"></span>${btn('shareClose', t('닫기'), { cls: 'ghost' })}${btn('shareAgain', t('다시 만들기'), { cls: 'primary', icon: 'share' })}</div>
+      </div></div>`;
+    }
+    const all = S.snap.skills.map(s => s.slug);
+    const rows = all.map(s => `<label class="chk" data-act="sharePick" data-arg="${esc(s)}"><input type="checkbox"${v.picked.includes(s) ? ' checked' : ''}/><span class="mono">${esc(s)}</span></label>`).join('');
+    return `${open(t('공유'))}
+      <h3>${t('공유 링크 만들기')}</h3>
+      <p>${t('고른 스킬을 ZIP 하나로 묶어 7자리 코드를 만들어요. 코드나 링크를 받은 사람은 가져오기에서 붙여 넣으면 라이브러리에 들어와요.')}</p>
+      <div class="chips"><button class="chip" data-act="shareAll">${t('전체')}</button><button class="chip" data-act="shareNone">${t('없음')}</button></div>
+      <div class="share-list">${rows}</div>
+      ${v.busy ? `<div class="note busy">${t('공유 코드를 만드는 중…')}</div>` : ''}
+      <div class="btns"><span class="note">${t('{n}개 고름', { n: v.picked.length })}</span><span class="gap"></span>${btn('shareClose', t('취소'), { cls: 'ghost' })}${btn('shareNow', t('공유 코드 만들기'), { cls: 'primary', icon: 'share', disabled: v.busy || !v.picked.length })}</div>
+    </div></div>`;
+  }
+
+  function toggleSharePick(slug) {
+    const v = S.share;
+    if (!v) return;
+    const i = v.picked.indexOf(slug);
+    if (i < 0) v.picked.push(slug);
+    else v.picked.splice(i, 1);
+    renderModal();
+  }
+
+  /** 클립보드에 넣어요. 클립보드 API가 막혀 있으면 예전 방식으로 한 번 더 해 봐요. */
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* 아래 방식 */ }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  async function copyShare(what) {
+    const r = S.share && S.share.result;
+    if (!r) return;
+    const ok = await copyText(what === 'link' ? r.url : r.code);
+    toast(ok ? t('복사했어요') : t('복사하지 못했어요 — 화면의 글자를 직접 선택해 복사해 주세요'), !ok);
+  }
+
+  async function importAny(preset) {
     const examples = ['https://github.com/anthropics/skills', 'https://github.com/anthropics/skills/tree/main/skills/pdf'];
     const opts = {
-      title: t('GitHub에서 가져오기'),
-      msg: t('저장소나 스킬 폴더 주소를 붙여 넣으세요. SKILL.md가 있는 폴더를 찾아 검사한 뒤 라이브러리에 넣어요. (공개 저장소만)'),
-      input: { value: preset || '', placeholder: 'https://github.com/owner/repo/tree/main/skills/my-skill' },
+      title: t('가져오기'),
+      msg: t('공유 코드(7자리)나 주소를 붙여 넣으세요. 공유 코드는 그 묶음의 스킬을 그대로 받고, 주소는 GitHub 저장소·스킬 폴더에서 SKILL.md가 있는 폴더를 찾아 넣어요. (공개 저장소만)'),
+      input: { value: preset || '', placeholder: 'AB3K9MZ · https://github.com/owner/repo/tree/main/skills/my-skill' },
       examples, ok: t('가져오기'),
     };
     const r = await ask(opts);
     if (r !== 'ok') return;
-    const url = (S.lastInput || '').trim();
-    if (!url) return;
+    const v = (S.lastInput || '').trim();
+    if (!v) return;
+    const sharing = isShareRef(v);
     // 받는 동안 대화상자를 그대로 두고 진행 중이라고 보여줘요.
-    S.modal = Object.assign({}, opts, { input: { value: url, placeholder: opts.input.placeholder }, busy: t('GitHub에서 받는 중…'), resolve: () => {} });
+    S.modal = Object.assign({}, opts, { input: { value: v, placeholder: opts.input.placeholder }, busy: sharing ? t('공유 코드로 받는 중…') : t('GitHub에서 받는 중…'), resolve: () => {} });
     renderModal();
     let res;
-    try { res = await call('import_github', { url }); } catch (e) { res = { failed: typeof e === 'string' ? e : (e && e.message) || String(e) }; }
+    try {
+      res = sharing ? await call('import_share', { input: v }) : await call('import_github', { url: v });
+    } catch (e) { res = { failed: typeof e === 'string' ? e : (e && e.message) || String(e) }; }
     S.modal = null; renderModal();
-    if (res.failed) { toast(res.failed, true); setTimeout(() => importGithub(url), 0); return; }
+    if (res.failed) { toast(res.failed, true); setTimeout(() => importAny(v), 0); return; }
     take(res);
     afterImport(res.slugs, res.errors);
+  }
+
+  async function importGithub(preset) {
+    return importAny(preset);
   }
 
   const A = {
@@ -1042,7 +1142,19 @@
     },
     importFolder: () => importPick('folder'),
     importZip: () => importPick('zip'),
-    importGithub: () => importGithub(),
+    importLink: () => importAny(),
+    importGithub: () => importAny(),
+    shareOpen: () => openShare(),
+    shareSkill: el => openShare([el.dataset.arg]),
+    shareAll: () => { const v = S.share; if (v) { v.picked = S.snap.skills.map(s => s.slug); renderModal(); } },
+    shareNone: () => { const v = S.share; if (v) { v.picked = []; renderModal(); } },
+    shareNow: () => shareNow(),
+    sharePick: el => toggleSharePick(el.dataset.arg),
+    shareClose: () => closeShare(),
+    shareBack: (el, e) => { if (e.target === el) closeShare(); },
+    shareAgain: () => { const v = S.share; if (v) { S.share = { picked: v.picked, busy: false, result: null }; renderModal(); } },
+    copyCode: () => copyShare('code'),
+    copyLink: () => copyShare('link'),
     exportZip: async el => {
       const p = await run(() => call('export_zip', { slug: el.dataset.arg }));
       if (p) {
@@ -1350,6 +1462,10 @@
       if (e.key === 'Escape') { e.preventDefault(); closeDiff(); }
       return;
     }
+    if (S.share) {
+      if (e.key === 'Escape') { e.preventDefault(); closeShare(); }
+      return;
+    }
     if (mod && e.key.toLowerCase() === 's') {
       e.preventDefault();
       if (S.file) saveFile(); else if (S.draft && S.draft.dirty) saveDraft();
@@ -1430,5 +1546,5 @@
   });
 
   // 미리보기·테스트용
-  window.__SL = { S, render, goto, openSkill, openCleanup, openDiff, importGithub, t };
+  window.__SL = { S, render, goto, openSkill, openCleanup, openDiff, importGithub: importAny, openShare, t };
 })();

@@ -422,6 +422,15 @@ div.warn .ic, div.err .ic { margin-top: 2px; }
 .dl.del .sg { color: var(--crit); }
 .d-note { padding: 10px 12px; color: var(--text-3); font-family: var(--font); font-size: 12px; }
 
+/* 공유 코드 */
+.share { display: grid; gap: 10px; justify-items: center; padding: 18px 16px; background: var(--bg-input); border: 1px solid var(--line); border-radius: var(--r-card); }
+.share-code { font-size: 30px; letter-spacing: .18em; font-weight: 600; color: var(--text); user-select: all; padding-left: .18em; }
+.share-btns { display: flex; gap: 8px; }
+.share-url { max-width: 100%; text-align: center; }
+.share-list { display: grid; gap: 3px; max-height: 240px; overflow: auto; padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--line); border-radius: 10px; }
+.modal .share-list label.chk { padding: 3px 2px; border-radius: 6px; }
+.modal .share-list label.chk:hover { background: var(--bg-hover); color: var(--text); }
+
 /* macOS: 기본 신호등 버튼이 타이틀바 왼쪽 위에 겹쳐 있어요 (windows.rs). 자리를 비우고 자체 창 버튼은 숨겨요. */
 body.mac .titlebar { padding-left: 84px; padding-right: 10px; }
 body.mac .win-ctl { display: none; }
